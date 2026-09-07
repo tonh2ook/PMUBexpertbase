@@ -1087,7 +1087,11 @@ const I18N = {
     cloudPullNow:'⬇ ดึงเลย',
     syncNetCut:'สัญญาณอินเทอร์เน็ตหลุดระหว่างโหลด — กดลองใหม่อีกครั้ง (แนะนำต่อ WiFi)',
     syncPullingN:(i,n)=>'กำลังดาวน์โหลดก้อนที่ '+i+'/'+n+' ...',
-    syncBytesMismatch:(a,b)=>'ข้อมูลมาไม่ครบ ('+Math.round(a/1024)+'/'+Math.round(b/1024)+' KB) — กดลองใหม่อีกครั้ง'
+    syncBytesMismatch:(a,b)=>'ข้อมูลมาไม่ครบ ('+Math.round(a/1024)+'/'+Math.round(b/1024)+' KB) — กดลองใหม่อีกครั้ง',
+    syncAuthErr:'Token ไม่ถูกต้อง/หมดสิทธิ์ หรือ GitHub จำกัดการเรียกชั่วคราว — ตรวจ Token แล้วรอ 1-2 นาทีค่อยลองใหม่',
+    syncNotFound:'ไม่พบ Gist นี้ — ตรวจ Gist ID อีกครั้ง',
+    syncTooBig:'GitHub ปฏิเสธข้อมูลก้อนนี้ (422) — ลองใหม่อีกครั้ง',
+    syncCorrupt:'ข้อมูลบนคลาวด์อ่านไม่สมบูรณ์ — ให้เครื่องที่มีข้อมูลจริงกด "บันทึกขึ้นคลาวด์" ใหม่หนึ่งครั้ง แล้วค่อยดึงอีกที'
   },
   en: {
     railSub:'Expert Reviewer Database', navData:'Data', navExperts:'Experts', navProjects:'Projects', navReviews:'Reviews',
@@ -1188,7 +1192,11 @@ const I18N = {
     cloudPullNow:'⬇ Pull now',
     syncNetCut:'Connection dropped mid-download — try again (WiFi recommended)',
     syncPullingN:(i,n)=>'Downloading chunk '+i+'/'+n+' ...',
-    syncBytesMismatch:(a,b)=>'Incomplete data ('+Math.round(a/1024)+'/'+Math.round(b/1024)+' KB) — try again'
+    syncBytesMismatch:(a,b)=>'Incomplete data ('+Math.round(a/1024)+'/'+Math.round(b/1024)+' KB) — try again',
+    syncAuthErr:'Invalid token or temporary GitHub rate limit — check the token and retry in a minute',
+    syncNotFound:'Gist not found — check the Gist ID',
+    syncTooBig:'GitHub rejected this payload (422) — try again',
+    syncCorrupt:'Cloud data is unreadable — push again from the device holding the real data, then pull'
   }
 };
 let LANG = localStorage.getItem('peb_lang') || 'th';
@@ -1434,6 +1442,13 @@ function starsRead(avg, count){
 const GH_API = 'https://api.github.com';
 const CHUNK = 800*1024;
 function syncCfg(){ return {token: localStorage.getItem('peb_gh_token')||'', gist: localStorage.getItem('peb_gist_id')||''}; }
+function humanSyncErr(m){
+  if(/HTTP 401|HTTP 403/.test(m)) return T('syncAuthErr');
+  if(/HTTP 404/.test(m)) return T('syncNotFound');
+  if(/HTTP 422/.test(m)) return T('syncTooBig');
+  if(/Unexpected end of JSON|JSON Parse|Unexpected token/i.test(m)) return T('syncCorrupt');
+  return m;
+}
 function syncStatusText(){
   const at = localStorage.getItem('peb_sync_at');
   const g = syncCfg().gist;
@@ -1493,11 +1508,13 @@ async function cloudPush(){
     files['manifest.json'] = {content: JSON.stringify({app:'pmub-expert-base', chunks:n, bytes:raw.length, updatedAt:new Date().toISOString()})};
     let id = gist;
     if(id){
-      // null out stale chunk files beyond n
-      const cur = await gh('/gists/'+id);
-      Object.keys(cur.files||{}).forEach(fn=>{
-        if(/^data_\d+\.txt$/.test(fn) && !(fn in files)) files[fn] = null;
-      });
+      // null out stale chunk files beyond n — best-effort; a failed lookup must never block the push
+      try {
+        const cur = await gh('/gists/'+id);
+        Object.keys(cur.files||{}).forEach(fn=>{
+          if(/^data_\d+\.txt$/.test(fn) && !(fn in files)) files[fn] = null;
+        });
+      } catch(e){ /* skip cleanup; manifest.chunks bounds all reads anyway */ }
       await withRetry(()=> gh('/gists/'+id, {method:'PATCH', body:JSON.stringify({files})}), 2);
     } else {
       const made = await withRetry(()=> gh('/gists', {method:'POST', body:JSON.stringify({
@@ -1509,7 +1526,7 @@ async function cloudPush(){
     hideCloudBanner();
     refreshSyncUI();
     toast(T('syncPushed')(Math.round(raw.length/1024)));
-  } catch(e){ setSyncStatus(T('syncErr')(e.message)); toast(T('syncErr')(e.message)); }
+  } catch(e){ const m = humanSyncErr(e.message); setSyncStatus(T('syncErr')(m)); toast(T('syncErr')(m)); }
 }
 async function cloudPull(){
   const {gist} = syncCfg();
@@ -1538,7 +1555,7 @@ async function cloudPull(){
     hideCloudBanner();
     refreshSyncUI();
     toast(T('syncPulled'));
-  } catch(e){ setSyncStatus(T('syncErr')(e.message)); toast(T('syncErr')(e.message)); }
+  } catch(e){ const m = humanSyncErr(e.message); setSyncStatus(T('syncErr')(m)); toast(T('syncErr')(m)); }
 }
 // ---------------- Cloud update notification ----------------
 function hideCloudBanner(){ document.getElementById('cloudBanner').classList.remove('show'); }
@@ -1581,7 +1598,7 @@ function openPasteImport(){
   setTimeout(()=>ta.focus(), 80);
 }
 // ---------------- Simple login gate ----------------
-const APP_VERSION = 'v4.43';
+const APP_VERSION = 'v4.44';
 const ACCESS_CODE = 'global';
 function initLogin(){
   const gate = document.getElementById('loginGate');
