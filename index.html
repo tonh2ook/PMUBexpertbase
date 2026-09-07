@@ -852,6 +852,8 @@ table.tbl { width:100%; border-collapse:collapse; font-size:13.5px; }
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:6px">
         <button class="btn btn-ghost" id="exportBtn" data-i18n="export">⬇ ส่งออก JSON</button>
         <button class="btn btn-ghost" id="importBtn" data-i18n="import">⬆ นำเข้า JSON</button>
+        <button class="btn btn-ghost" id="copyDataBtn" data-i18n="copyData">📋 คัดลอกข้อมูล (ข้อความ)</button>
+        <button class="btn btn-ghost" id="pasteImportBtn" data-i18n="pasteImport">📥 นำเข้าจากข้อความ</button>
         <button class="btn btn-ghost" id="langBtn">EN</button>
         <button class="btn btn-ghost" id="logoutBtn" data-i18n="logout" style="color:var(--bad)">ออกจากระบบ</button>
       </div>
@@ -879,6 +881,20 @@ table.tbl { width:100%; border-collapse:collapse; font-size:13.5px; }
   <button class="btn btn-teal btn-sm" id="exportSelBtn" data-i18n="exportSelected">⬇ Export Excel</button>
   <button class="btn btn-ghost btn-sm" id="clearSelBtn" style="background:rgba(255,255,255,.12);border-color:transparent;color:#fff" data-i18n="clearSelection">ล้างการเลือก</button>
 </div>
+<div class="overlay layer-top" id="textDataModal">
+  <div class="modal" style="max-width:640px">
+    <button class="close-x" data-close="textDataModal">✕</button>
+    <h2 id="tdTitle"></h2>
+    <p id="tdDesc" style="font-size:13px;color:var(--ink-2);margin:6px 0 10px"></p>
+    <textarea id="tdText" style="width:100%;height:220px;font-size:11px;font-family:monospace;border:1px solid var(--line);border-radius:10px;padding:10px;resize:vertical"></textarea>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" data-close="textDataModal" data-i18n="closeBtn">ปิด</button>
+      <button class="btn btn-teal" id="tdCopyBtn" style="display:none">📋 คัดลอกทั้งหมด</button>
+      <button class="btn btn-primary" id="tdImportBtn" style="display:none">📥 นำเข้าข้อมูลนี้</button>
+    </div>
+  </div>
+</div>
+
 <div class="overlay" id="syncModal">
   <div class="modal" style="max-width:560px">
     <button class="close-x" data-close="syncModal">✕</button>
@@ -1037,7 +1053,12 @@ const I18N = {
     syncPushing:'กำลังอัพโหลด...', syncPulling:'กำลังดาวน์โหลด...',
     syncPushed:(kb)=>'บันทึกขึ้นคลาวด์สำเร็จ ('+kb+' KB)', syncPulled:'ดึงข้อมูลจากคลาวด์เรียบร้อย',
     syncErr:(m)=>'ผิดพลาด: '+m, syncNever:'ยังไม่เคยซิงก์', syncLast:'ซิงก์ล่าสุด:',
-    syncConfirmPull:'ดึงข้อมูลจากคลาวด์จะเขียนทับข้อมูลในเครื่องนี้ทั้งหมด ยืนยันหรือไม่?'
+    syncConfirmPull:'ดึงข้อมูลจากคลาวด์จะเขียนทับข้อมูลในเครื่องนี้ทั้งหมด ยืนยันหรือไม่?',
+    copyData:'📋 คัดลอกข้อมูล (ข้อความ)', pasteImport:'📥 นำเข้าจากข้อความ',
+    tdCopyTitle:'สำรองข้อมูลผ่านการคัดลอก', tdCopyDesc:'ข้อมูลทั้งหมดถูกใส่ไว้ในกล่องด้านล่างและพยายามคัดลอกให้แล้ว — นำไปวาง (Ctrl+V) ใน Notepad แล้วบันทึกเป็นไฟล์ .json หรือวางในช่อง "นำเข้าจากข้อความ" ของเครื่องปลายทางได้เลย',
+    tdPasteTitle:'นำเข้าข้อมูลจากข้อความ', tdPasteDesc:'วาง (Ctrl+V) ข้อความข้อมูลที่คัดลอกมาจากเครื่องต้นทาง แล้วกดปุ่มนำเข้า — จะเขียนทับข้อมูลในเครื่องนี้ทั้งหมด',
+    tdCopied:(kb)=>'คัดลอกแล้ว '+kb+' KB', tdCopyFail:'คัดลอกอัตโนมัติไม่สำเร็จ — กดในกล่องแล้ว Ctrl+A, Ctrl+C เองได้เลย',
+    tdConfirmImport:'นำเข้าข้อมูลนี้จะเขียนทับข้อมูลในเครื่องทั้งหมด ยืนยันหรือไม่?', tdEmpty:'ยังไม่ได้วางข้อมูล'
   },
   en: {
     railSub:'Expert Reviewer Database', navData:'Data', navExperts:'Experts', navProjects:'Projects', navReviews:'Reviews',
@@ -1128,7 +1149,12 @@ const I18N = {
     syncPushing:'Uploading...', syncPulling:'Downloading...',
     syncPushed:(kb)=>'Pushed to cloud ('+kb+' KB)', syncPulled:'Pulled from cloud successfully',
     syncErr:(m)=>'Error: '+m, syncNever:'Never synced', syncLast:'Last sync:',
-    syncConfirmPull:'Pulling will OVERWRITE all data on this device. Continue?'
+    syncConfirmPull:'Pulling will OVERWRITE all data on this device. Continue?',
+    copyData:'📋 Copy data (text)', pasteImport:'📥 Import from text',
+    tdCopyTitle:'Backup via clipboard', tdCopyDesc:'All data is in the box below and copied automatically — paste into Notepad and save as .json, or paste into "Import from text" on the target device.',
+    tdPasteTitle:'Import data from text', tdPasteDesc:'Paste the data text copied from the source device, then press import — this overwrites everything on this device.',
+    tdCopied:(kb)=>'Copied '+kb+' KB', tdCopyFail:'Auto-copy failed — click the box then Ctrl+A, Ctrl+C manually',
+    tdConfirmImport:'Importing will OVERWRITE all data on this device. Continue?', tdEmpty:'Nothing pasted yet'
   }
 };
 let LANG = localStorage.getItem('peb_lang') || 'th';
@@ -1447,6 +1473,29 @@ async function cloudPull(){
     refreshSyncUI();
     toast(T('syncPulled'));
   } catch(e){ setSyncStatus(T('syncErr')(e.message)); toast(T('syncErr')(e.message)); }
+}
+// ---------------- Clipboard backup / restore ----------------
+async function openCopyData(){
+  const raw = JSON.stringify(collectPayload());
+  document.getElementById('tdTitle').textContent = T('tdCopyTitle');
+  document.getElementById('tdDesc').textContent = T('tdCopyDesc');
+  const ta = document.getElementById('tdText');
+  ta.value = raw; ta.readOnly = true;
+  document.getElementById('tdCopyBtn').style.display = '';
+  document.getElementById('tdImportBtn').style.display = 'none';
+  openModal('textDataModal');
+  const ok = await copyText(raw);
+  toast(ok ? T('tdCopied')(Math.round(raw.length/1024)) : T('tdCopyFail'));
+}
+function openPasteImport(){
+  document.getElementById('tdTitle').textContent = T('tdPasteTitle');
+  document.getElementById('tdDesc').textContent = T('tdPasteDesc');
+  const ta = document.getElementById('tdText');
+  ta.value = ''; ta.readOnly = false;
+  document.getElementById('tdCopyBtn').style.display = 'none';
+  document.getElementById('tdImportBtn').style.display = '';
+  openModal('textDataModal');
+  setTimeout(()=>ta.focus(), 80);
 }
 // ---------------- Simple login gate ----------------
 const ACCESS_CODE = 'global';
@@ -2995,6 +3044,21 @@ window.addEventListener('DOMContentLoaded', async ()=>{
   });
 
   initLogin();
+  document.getElementById('copyDataBtn').addEventListener('click', openCopyData);
+  document.getElementById('pasteImportBtn').addEventListener('click', openPasteImport);
+  document.getElementById('tdCopyBtn').addEventListener('click', async ()=>{
+    const ta = document.getElementById('tdText');
+    const ok = await copyText(ta.value);
+    if(!ok){ ta.focus(); ta.select(); }
+    toast(ok ? T('tdCopied')(Math.round(ta.value.length/1024)) : T('tdCopyFail'));
+  });
+  document.getElementById('tdImportBtn').addEventListener('click', async ()=>{
+    const raw = document.getElementById('tdText').value.trim();
+    if(!raw){ toast(T('tdEmpty')); return; }
+    if(!await appConfirm(T('tdConfirmImport'))) return;
+    await importJSON({ text: async ()=> raw });
+    closeModal('textDataModal');
+  });
   document.getElementById('syncBtn').addEventListener('click', ()=>{ refreshSyncUI(); openModal('syncModal'); });
   document.getElementById('ghTokenEye').addEventListener('click', ()=>{
     const t = document.getElementById('ghToken');
