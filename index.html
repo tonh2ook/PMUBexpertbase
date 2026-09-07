@@ -1084,7 +1084,10 @@ const I18N = {
     tdCopied:(kb)=>'คัดลอกแล้ว '+kb+' KB', tdCopyFail:'คัดลอกอัตโนมัติไม่สำเร็จ — กดในกล่องแล้ว Ctrl+A, Ctrl+C เองได้เลย',
     tdConfirmImport:'นำเข้าข้อมูลนี้จะเขียนทับข้อมูลในเครื่องทั้งหมด ยืนยันหรือไม่?', tdEmpty:'ยังไม่ได้วางข้อมูล',
     cloudNew:(dt)=>'มีข้อมูลใหม่บนคลาวด์ (อัพเดต '+dt+') — ดึงมาใช้ก่อนเริ่มงานเพื่อให้เป็นเวอร์ชันล่าสุด',
-    cloudPullNow:'⬇ ดึงเลย'
+    cloudPullNow:'⬇ ดึงเลย',
+    syncNetCut:'สัญญาณอินเทอร์เน็ตหลุดระหว่างโหลด — กดลองใหม่อีกครั้ง (แนะนำต่อ WiFi)',
+    syncPullingN:(i,n)=>'กำลังดาวน์โหลดก้อนที่ '+i+'/'+n+' ...',
+    syncBytesMismatch:(a,b)=>'ข้อมูลมาไม่ครบ ('+Math.round(a/1024)+'/'+Math.round(b/1024)+' KB) — กดลองใหม่อีกครั้ง'
   },
   en: {
     railSub:'Expert Reviewer Database', navData:'Data', navExperts:'Experts', navProjects:'Projects', navReviews:'Reviews',
@@ -1182,7 +1185,10 @@ const I18N = {
     tdCopied:(kb)=>'Copied '+kb+' KB', tdCopyFail:'Auto-copy failed — click the box then Ctrl+A, Ctrl+C manually',
     tdConfirmImport:'Importing will OVERWRITE all data on this device. Continue?', tdEmpty:'Nothing pasted yet',
     cloudNew:(dt)=>'Newer data on cloud (updated '+dt+') — pull before you start working',
-    cloudPullNow:'⬇ Pull now'
+    cloudPullNow:'⬇ Pull now',
+    syncNetCut:'Connection dropped mid-download — try again (WiFi recommended)',
+    syncPullingN:(i,n)=>'Downloading chunk '+i+'/'+n+' ...',
+    syncBytesMismatch:(a,b)=>'Incomplete data ('+Math.round(a/1024)+'/'+Math.round(b/1024)+' KB) — try again'
   }
 };
 let LANG = localStorage.getItem('peb_lang') || 'th';
@@ -1458,7 +1464,17 @@ async function gh(path, opts={}){
       token?{'Authorization':'Bearer '+token}:{}, opts.headers||{})
   }));
   if(!r.ok){ throw new Error('HTTP '+r.status); }
-  return r.json();
+  const txt = await r.text();
+  try { return JSON.parse(txt); }
+  catch(e){ throw new Error(T('syncNetCut')); }
+}
+async function withRetry(fn, tries){
+  let last;
+  for(let i=0;i<tries;i++){
+    try { return await fn(); }
+    catch(e){ last = e; await new Promise(r=>setTimeout(r, 900)); }
+  }
+  throw last;
 }
 async function cloudPush(){
   const {token, gist} = syncCfg();
@@ -1477,10 +1493,10 @@ async function cloudPush(){
       Object.keys(cur.files||{}).forEach(fn=>{
         if(/^data_\d+\.txt$/.test(fn) && !(fn in files)) files[fn] = null;
       });
-      await gh('/gists/'+id, {method:'PATCH', body:JSON.stringify({files})});
+      await withRetry(()=> gh('/gists/'+id, {method:'PATCH', body:JSON.stringify({files})}), 2);
     } else {
-      const made = await gh('/gists', {method:'POST', body:JSON.stringify({
-        description:'PMU-B Expert Base — data sync', public:false, files})});
+      const made = await withRetry(()=> gh('/gists', {method:'POST', body:JSON.stringify({
+        description:'PMU-B Expert Base — data sync', public:false, files})}), 2);
       id = made.id;
       localStorage.setItem('peb_gist_id', id);
     }
@@ -1496,14 +1512,27 @@ async function cloudPull(){
   if(!await appConfirm(T('syncConfirmPull'))) return;
   try {
     setSyncStatus(T('syncPulling'));
-    const g = await gh('/gists/'+gist);
-    const man = JSON.parse(g.files['manifest.json'].content);
-    let raw = '';
-    for(let i=0;i<man.chunks;i++){
-      const f = g.files['data_'+String(i).padStart(3,'0')+'.txt'];
-      if(!f) throw new Error('missing chunk '+i);
-      raw += f.truncated ? await (await fetch(f.raw_url)).text() : f.content;
-    }
+    const raw = await withRetry(async ()=>{
+      const g = await gh('/gists/'+gist);
+      const mf = g.files && g.files['manifest.json'];
+      if(!mf) throw new Error('manifest not found');
+      const man = JSON.parse(mf.content);
+      let out = '';
+      for(let i=0;i<man.chunks;i++){
+        setSyncStatus(T('syncPullingN')(i+1, man.chunks));
+        const f = g.files['data_'+String(i).padStart(3,'0')+'.txt'];
+        if(!f) throw new Error('missing chunk '+i);
+        let c = (!f.truncated && f.content) ? f.content : '';
+        if(!c){
+          const rr = await fetch(f.raw_url);
+          if(!rr.ok) throw new Error('HTTP '+rr.status+' (chunk '+i+')');
+          c = await rr.text();
+        }
+        out += c;
+      }
+      if(man.bytes && out.length !== man.bytes) throw new Error(T('syncBytesMismatch')(out.length, man.bytes));
+      return out;
+    }, 2);
     await importJSON({ text: async ()=> raw });
     localStorage.setItem('peb_sync_at', new Date().toISOString());
     hideCloudBanner();
@@ -1517,11 +1546,8 @@ async function checkCloudUpdates(){
   const {gist} = syncCfg();
   if(!gist) return;
   try {
-    const g = await gh('/gists/'+gist);
-    const mf = g.files && g.files['manifest.json'];
-    if(!mf) return;
-    const man = JSON.parse(mf.content);
-    const cloudAt = man.updatedAt || '';
+    const commits = await gh('/gists/'+gist+'/commits?per_page=1');
+    const cloudAt = (Array.isArray(commits) && commits[0] && commits[0].committed_at) || '';
     const localAt = localStorage.getItem('peb_sync_at') || '';
     const dismissed = sessionStorage.getItem('peb_banner_dismiss') || '';
     if(cloudAt && cloudAt > localAt && cloudAt !== dismissed){
@@ -1555,7 +1581,7 @@ function openPasteImport(){
   setTimeout(()=>ta.focus(), 80);
 }
 // ---------------- Simple login gate ----------------
-const APP_VERSION = 'v4.41';
+const APP_VERSION = 'v4.42';
 const ACCESS_CODE = 'global';
 function initLogin(){
   const gate = document.getElementById('loginGate');
