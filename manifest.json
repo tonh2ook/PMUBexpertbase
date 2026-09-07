@@ -1,0 +1,31 @@
+{
+ "name": "PMU-B Expert Base — ระบบฐานข้อมูลผู้ทรงคุณวุฒิ",
+ "short_name": "Expert Base",
+ "description": "ฐานข้อมูลผู้ทรงคุณวุฒิ บพค. พร้อมระบบงานประเมินและซิงก์ออนไลน์",
+ "start_url": "./index.html",
+ "scope": "./",
+ "display": "standalone",
+ "background_color": "#0B2E58",
+ "theme_color": "#0B2E58",
+ "lang": "th",
+ "icons": [
+  {
+   "src": "icon-192.png",
+   "sizes": "192x192",
+   "type": "image/png",
+   "purpose": "any"
+  },
+  {
+   "src": "icon-512.png",
+   "sizes": "512x512",
+   "type": "image/png",
+   "purpose": "any"
+  },
+  {
+   "src": "icon-512-maskable.png",
+   "sizes": "512x512",
+   "type": "image/png",
+   "purpose": "maskable"
+  }
+ ]
+}
