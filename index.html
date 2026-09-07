@@ -567,6 +567,7 @@ table.tbl { width:100%; border-collapse:collapse; font-size:13.5px; }
   <div class="rail-foot">
     <button class="btn" id="settingsBtn" data-i18n="settings">⚙ ตั้งค่า</button>
     <button class="btn" id="syncBtn" data-i18n="syncBtn">☁ ซิงก์ข้อมูลออนไลน์</button>
+    <div id="railSyncInfo" style="font-size:10.5px;color:rgba(255,255,255,.55);text-align:center;margin-top:6px;line-height:1.5"></div>
   </div>
 </aside>
 
@@ -1431,7 +1432,14 @@ function syncStatusText(){
   const g = syncCfg().gist;
   return (at ? T('syncLast')+' '+fmtDateTime(at) : T('syncNever')) + (g ? ' · Gist: '+g.slice(0,10)+'…' : '');
 }
+function updateRailSync(){
+  const el = document.getElementById('railSyncInfo');
+  if(!el) return;
+  const at = localStorage.getItem('peb_sync_at');
+  el.textContent = at ? (T('syncLast')+' '+fmtDateTime(at)) : T('syncNever');
+}
 function refreshSyncUI(){
+  updateRailSync();
   const c = syncCfg();
   document.getElementById('ghToken').value = c.token;
   document.getElementById('ghGistId').value = c.gist;
@@ -2126,6 +2134,7 @@ function applyLang(){
   document.querySelectorAll('[data-i18n]').forEach(el=>{ const v = T(el.dataset.i18n); if(typeof v==='string') el.textContent = v; });
   document.querySelectorAll('[data-i18n-ph]').forEach(el=>{ el.placeholder = T(el.dataset.i18nPh); });
   document.getElementById('langBtn').textContent = LANG==='th' ? 'EN' : 'ไทย';
+  updateRailSync();
   const rType = document.getElementById('rType');
   ['proposal','progress','final','other'].forEach((k,i)=>{ rType.options[i].textContent = I18N[LANG].typeNames[k]; });
 }
@@ -3103,6 +3112,7 @@ window.addEventListener('DOMContentLoaded', async ()=>{
     sessionStorage.setItem('peb_banner_dismiss', document.getElementById('cloudBanner').dataset.cloudAt||'x');
     hideCloudBanner();
   });
+  updateRailSync();
   checkCloudUpdates();
   document.getElementById('copyDataBtn').addEventListener('click', openCopyData);
   document.getElementById('pasteImportBtn').addEventListener('click', openPasteImport);
