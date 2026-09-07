@@ -568,6 +568,7 @@ table.tbl { width:100%; border-collapse:collapse; font-size:13.5px; }
     <button class="btn" id="settingsBtn" data-i18n="settings">⚙ ตั้งค่า</button>
     <button class="btn" id="syncBtn" data-i18n="syncBtn">☁ ซิงก์ข้อมูลออนไลน์</button>
     <div id="railSyncInfo" style="font-size:10.5px;color:rgba(255,255,255,.55);text-align:center;margin-top:6px;line-height:1.5"></div>
+    <div id="railVersion" style="font-size:9.5px;color:rgba(255,255,255,.35);text-align:center;margin-top:3px"></div>
   </div>
 </aside>
 
@@ -1554,6 +1555,7 @@ function openPasteImport(){
   setTimeout(()=>ta.focus(), 80);
 }
 // ---------------- Simple login gate ----------------
+const APP_VERSION = 'v4.41';
 const ACCESS_CODE = 'global';
 function initLogin(){
   const gate = document.getElementById('loginGate');
@@ -3113,6 +3115,7 @@ window.addEventListener('DOMContentLoaded', async ()=>{
     hideCloudBanner();
   });
   updateRailSync();
+  document.getElementById('railVersion').textContent = 'Expert Base '+APP_VERSION;
   checkCloudUpdates();
   document.getElementById('copyDataBtn').addEventListener('click', openCopyData);
   document.getElementById('pasteImportBtn').addEventListener('click', openPasteImport);
