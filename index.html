@@ -1468,6 +1468,11 @@ async function gh(path, opts={}){
   try { return JSON.parse(txt); }
   catch(e){ throw new Error(T('syncNetCut')); }
 }
+async function fetchRawText(url){
+  const r = await fetch(url);
+  if(!r.ok) throw new Error('HTTP '+r.status);
+  return r.text();
+}
 async function withRetry(fn, tries){
   let last;
   for(let i=0;i<tries;i++){
@@ -1512,27 +1517,22 @@ async function cloudPull(){
   if(!await appConfirm(T('syncConfirmPull'))) return;
   try {
     setSyncStatus(T('syncPulling'));
-    const raw = await withRetry(async ()=>{
-      const g = await gh('/gists/'+gist);
-      const mf = g.files && g.files['manifest.json'];
-      if(!mf) throw new Error('manifest not found');
-      const man = JSON.parse(mf.content);
-      let out = '';
-      for(let i=0;i<man.chunks;i++){
-        setSyncStatus(T('syncPullingN')(i+1, man.chunks));
-        const f = g.files['data_'+String(i).padStart(3,'0')+'.txt'];
-        if(!f) throw new Error('missing chunk '+i);
-        let c = (!f.truncated && f.content) ? f.content : '';
-        if(!c){
-          const rr = await fetch(f.raw_url);
-          if(!rr.ok) throw new Error('HTTP '+rr.status+' (chunk '+i+')');
-          c = await rr.text();
-        }
-        out += c;
-      }
-      if(man.bytes && out.length !== man.bytes) throw new Error(T('syncBytesMismatch')(out.length, man.bytes));
-      return out;
-    }, 2);
+    // 1) tiny call: find owner + pinned revision (immutable raw URLs, mobile-friendly)
+    const commits = await withRetry(()=> gh('/gists/'+gist+'/commits?per_page=1'), 2);
+    const head = Array.isArray(commits) && commits[0];
+    if(!head || !head.user || !head.version) throw new Error('cloud is empty');
+    const base = 'https://gist.githubusercontent.com/'+head.user.login+'/'+gist+'/raw/'+head.version+'/';
+    // 2) small manifest
+    let man;
+    try { man = JSON.parse(await withRetry(()=> fetchRawText(base+'manifest.json'), 2)); }
+    catch(e){ throw new Error(/^HTTP/.test(e.message) ? e.message : T('syncNetCut')); }
+    // 3) chunks one-by-one, each with its own retry
+    let raw = '';
+    for(let i=0;i<man.chunks;i++){
+      setSyncStatus(T('syncPullingN')(i+1, man.chunks));
+      raw += await withRetry(()=> fetchRawText(base+'data_'+String(i).padStart(3,'0')+'.txt'), 3);
+    }
+    if(man.bytes && raw.length !== man.bytes) throw new Error(T('syncBytesMismatch')(raw.length, man.bytes));
     await importJSON({ text: async ()=> raw });
     localStorage.setItem('peb_sync_at', new Date().toISOString());
     hideCloudBanner();
@@ -1581,7 +1581,7 @@ function openPasteImport(){
   setTimeout(()=>ta.focus(), 80);
 }
 // ---------------- Simple login gate ----------------
-const APP_VERSION = 'v4.42';
+const APP_VERSION = 'v4.43';
 const ACCESS_CODE = 'global';
 function initLogin(){
   const gate = document.getElementById('loginGate');
