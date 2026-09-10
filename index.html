@@ -1642,7 +1642,7 @@ function openPasteImport(){
   setTimeout(()=>ta.focus(), 80);
 }
 // ---------------- Simple login gate ----------------
-const APP_VERSION = 'v4.49';
+const APP_VERSION = 'v4.50';
 const ACCESS_CODE = 'global';
 function initLogin(){
   const gate = document.getElementById('loginGate');
@@ -2272,7 +2272,7 @@ function genJobId(evalType){
   const code = EVAL_CODE[evalType] || 'PP';
   let maxSeq = 0;
   PROJECTS.forEach(p=>{
-    if(p.jobId && p.jobId.startsWith(be2)){
+    if(p.jobId && p.jobId.startsWith(be2) && p.jobId.includes('-'+code+'_')){
       const m = p.jobId.match(/_(\d{3})$/);
       if(m) maxSeq = Math.max(maxSeq, parseInt(m[1]));
     }
