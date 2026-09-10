@@ -232,6 +232,32 @@ select.flt, input.flt {
 .selbar.show { display:flex; }
 .selbar b { color:var(--teal-2); }
 .selbar .btn { padding:6px 14px; }
+.selpanel {
+  position:fixed; right:18px; bottom:84px; width:290px; max-height:62vh; z-index:69;
+  background:var(--paper); border:1px solid var(--line); border-radius:16px;
+  box-shadow:var(--shadow-l); display:none; flex-direction:column; overflow:hidden;
+  animation:fadeSlide .25s ease;
+}
+.selpanel.show { display:flex; }
+.selpanel-head {
+  display:flex; align-items:center; gap:8px; padding:11px 14px;
+  background:var(--navy); color:#fff; font-size:13px; font-weight:600; flex-shrink:0;
+}
+.selpanel-head .sp-toggle { margin-left:auto; border:none; background:rgba(255,255,255,.14); color:#fff;
+  width:24px; height:24px; border-radius:7px; cursor:pointer; font-size:13px; line-height:1; }
+.selpanel-body { overflow-y:auto; padding:8px; }
+.selpanel.collapsed .selpanel-body { display:none; }
+.sp-item { display:flex; align-items:center; gap:9px; padding:7px 8px; border-radius:10px; }
+.sp-item + .sp-item { border-top:1px solid var(--line-2); }
+.sp-item:hover { background:var(--wash); }
+.sp-avatar { width:34px; height:34px; border-radius:50%; object-fit:cover; flex-shrink:0; background:var(--line-2); }
+.sp-avatar-ph { display:flex; align-items:center; justify-content:center; font-size:13px; color:var(--ink-3); font-weight:700; }
+.sp-info { min-width:0; flex:1; cursor:pointer; }
+.sp-name { font-size:12.5px; font-weight:600; color:var(--ink); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.sp-org { font-size:10.5px; color:var(--ink-3); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.sp-del { border:none; background:none; cursor:pointer; color:var(--ink-3); font-size:15px; padding:3px 5px; border-radius:6px; flex-shrink:0; }
+.sp-del:hover { background:rgba(220,38,38,.10); color:var(--bad); }
+@media (max-width: 900px){ .selpanel { right:10px; left:10px; width:auto; bottom:78px; max-height:44vh; } }
 .empty { text-align:center; padding:52px 24px; color:var(--ink-2); }
 .empty .big { font-size:38px; margin-bottom:10px; }
 
@@ -996,6 +1022,13 @@ table.tbl { width:100%; border-collapse:collapse; font-size:13.5px; }
   </div>
 </div>
 
+<div class="selpanel" id="selPanel">
+  <div class="selpanel-head">
+    <span>🧺</span><span id="selPanelTitle"></span>
+    <button class="sp-toggle" id="selPanelToggle" title="ย่อ/ขยาย">▾</button>
+  </div>
+  <div class="selpanel-body" id="selPanelBody"></div>
+</div>
 <div class="selbar" id="selBar">
   <span id="selCount"></span>
   <button class="btn btn-teal btn-sm" id="exportSelBtn" data-i18n="exportSelected">⬇ Export Excel</button>
@@ -1110,6 +1143,7 @@ const I18N = {
     prefix:'ตำแหน่งวิชาการ / คำนำหน้า', nameTh:'ชื่อ-นามสกุล (ไทย)', nameEn:'ชื่อ-นามสกุล (อังกฤษ)',
     dept:'ภาควิชา', fac:'คณะ', univ:'มหาวิทยาลัย / สถาบันวิจัย', expertise:'ความเชี่ยวชาญ (คั่นด้วยเครื่องหมาย , )',
     urls:'เว็บไซต์ / ลิงก์ (เพิ่มได้หลายลิงก์)', addUrl:'+ เพิ่มลิงก์', email:'อีเมล', phone:'โทรศัพท์', notes:'หมายเหตุ',
+    selPanelTitle:'ผู้ทรงที่เลือกไว้', selRemove:'เอาออกจากรายการ',
     expNotes:'📝 ประเด็นที่สนใจ (แสดงบนการ์ดผู้ทรง)', expRemark:'🗒 หมายเหตุอื่นๆ (คอมเมนต์เพิ่มเติมเกี่ยวกับผู้ทรงท่านนี้)', remarkLabel:'หมายเหตุ:',
     delete:'ลบผู้ทรงคุณวุฒิ', cancel:'ยกเลิก', save:'บันทึก', doneBtn:'เสร็จสิ้น', confirmDo:'ยืนยันลบ', confirmTitle:'ยืนยันการลบ',
     addProject:'+ เพิ่มโครงการ', editProjectTitle:'แก้ไขโครงการ', addProjectTitle:'เพิ่มโครงการ', deleteProject:'ลบโครงการ',
@@ -1221,6 +1255,7 @@ const I18N = {
     prefix:'Academic title / Prefix', nameTh:'Full name (Thai)', nameEn:'Full name (English)',
     dept:'Department', fac:'Faculty', univ:'University / Research Institute', expertise:'Expertise (comma-separated)',
     urls:'Websites / Links (multiple allowed)', addUrl:'+ Add link', email:'Email', phone:'Phone', notes:'Notes',
+    selPanelTitle:'Selected experts', selRemove:'Remove from list',
     expNotes:'📝 Research interests (shown on card)', expRemark:'🗒 Other remarks (additional comments about this expert)', remarkLabel:'Remarks:',
     delete:'Delete expert', cancel:'Cancel', save:'Save', doneBtn:'Done', confirmDo:'Delete', confirmTitle:'Confirm deletion',
     addProject:'+ Add Project', editProjectTitle:'Edit Project', addProjectTitle:'Add Project', deleteProject:'Delete project',
@@ -1768,7 +1803,7 @@ function openPasteImport(){
   setTimeout(()=>ta.focus(), 80);
 }
 // ---------------- Simple login gate ----------------
-const APP_VERSION = 'v4.54';
+const APP_VERSION = 'v4.55';
 const ACCESS_CODE = 'global';
 function initLogin(){
   const gate = document.getElementById('loginGate');
@@ -1892,7 +1927,39 @@ function updateSelBar(){
   const bar = document.getElementById('selBar');
   const n = selectedIds.size;
   document.getElementById('selCount').innerHTML = '<b>'+esc(I18N[LANG].selCount(n))+'</b>';
-  bar.classList.toggle('show', n>0 && currentView==='experts');
+  const on = n>0 && currentView==='experts';
+  bar.classList.toggle('show', on);
+  renderSelPanel(on);
+}
+function renderSelPanel(on){
+  const panel = document.getElementById('selPanel');
+  panel.classList.toggle('show', on);
+  if(!on) return;
+  document.getElementById('selPanelTitle').textContent = T('selPanelTitle')+' ('+selectedIds.size+')';
+  const items = [...selectedIds].map(id=>EXPERTS.find(e=>e.id===id)).filter(Boolean);
+  document.getElementById('selPanelBody').innerHTML = items.map(ex=>{
+    const nm = [ex.prefix, ex.nameTh].filter(Boolean).join(' ');
+    const org = [ex.dept, ex.univ].filter(Boolean).join(' · ');
+    const av = ex.photo
+      ? '<img class="sp-avatar" src="'+esc(ex.photo)+'" alt="">'
+      : '<div class="sp-avatar sp-avatar-ph">'+esc((ex.nameTh||'?').trim().charAt(0))+'</div>';
+    return '<div class="sp-item">' + av +
+      '<div class="sp-info" data-spopen="'+esc(ex.id)+'" title="'+esc(nm+(org?' · '+org:''))+'">' +
+        '<div class="sp-name">'+esc(nm)+'</div>' +
+        (org?'<div class="sp-org">'+esc(org)+'</div>':'') +
+      '</div>' +
+      '<button class="sp-del" data-spdel="'+esc(ex.id)+'" title="'+esc(T('selRemove'))+'">✕</button>' +
+    '</div>';
+  }).join('');
+  document.getElementById('selPanelBody').querySelectorAll('[data-spdel]').forEach(b=>{
+    b.addEventListener('click', ()=>{
+      selectedIds.delete(b.dataset.spdel);
+      updateSelBar(); renderGrid();
+    });
+  });
+  document.getElementById('selPanelBody').querySelectorAll('[data-spopen]').forEach(el=>{
+    el.addEventListener('click', ()=> openDetail(el.dataset.spopen));
+  });
 }
 function exportSelectedXlsx(){
   if(!selectedIds.size) return;
@@ -3360,6 +3427,11 @@ window.addEventListener('DOMContentLoaded', async ()=>{
   });
   document.getElementById('exportSelBtn').addEventListener('click', exportSelectedXlsx);
   document.getElementById('clearSelBtn').addEventListener('click', ()=>{ selectedIds.clear(); updateSelBar(); renderGrid(); });
+  document.getElementById('selPanelToggle').addEventListener('click', ()=>{
+    const p = document.getElementById('selPanel');
+    p.classList.toggle('collapsed');
+    document.getElementById('selPanelToggle').textContent = p.classList.contains('collapsed') ? '▸' : '▾';
+  });
   document.getElementById('tmplBtn').addEventListener('click', downloadTemplate);
   document.getElementById('importXlsxBtn').addEventListener('click', ()=> document.getElementById('xlsxInput').click());
   document.getElementById('xlsxInput').addEventListener('change', (e)=>{
