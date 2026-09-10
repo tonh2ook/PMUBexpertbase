@@ -1803,7 +1803,7 @@ function openPasteImport(){
   setTimeout(()=>ta.focus(), 80);
 }
 // ---------------- Simple login gate ----------------
-const APP_VERSION = 'v4.55';
+const APP_VERSION = 'v4.56';
 const ACCESS_CODE = 'global';
 function initLogin(){
   const gate = document.getElementById('loginGate');
@@ -1939,7 +1939,7 @@ function renderSelPanel(on){
   const items = [...selectedIds].map(id=>EXPERTS.find(e=>e.id===id)).filter(Boolean);
   document.getElementById('selPanelBody').innerHTML = items.map(ex=>{
     const nm = [ex.prefix, ex.nameTh].filter(Boolean).join(' ');
-    const org = [ex.dept, ex.univ].filter(Boolean).join(' · ');
+    const org = (ex.univ||'').trim();
     const av = ex.photo
       ? '<img class="sp-avatar" src="'+esc(ex.photo)+'" alt="">'
       : '<div class="sp-avatar sp-avatar-ph">'+esc((ex.nameTh||'?').trim().charAt(0))+'</div>';
