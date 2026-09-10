@@ -455,6 +455,29 @@ table.tbl { width:100%; border-collapse:collapse; font-size:13.5px; }
 .crop-zoom input[type=range] { flex:1; accent-color:var(--teal); }
 .crop-hint { text-align:center; font-size:12px; color:var(--ink-3); margin-top:8px; }
 @media (max-width:420px){ .crop-stage { width:260px; height:260px; } }
+/* ---------- SYNC PROGRESS OVERLAY ---------- */
+.prog-overlay {
+  position:fixed; inset:0; z-index:300; display:none;
+  align-items:center; justify-content:center; flex-direction:column; gap:18px;
+  background:rgba(7,16,32,.62); backdrop-filter:blur(3px);
+}
+.prog-overlay.show { display:flex; }
+.prog-box { position:relative; width:140px; height:140px; }
+.prog-box svg { transform:rotate(-90deg); }
+.prog-track { fill:none; stroke:rgba(255,255,255,.16); stroke-width:9; }
+.prog-bar { fill:none; stroke:var(--teal); stroke-width:9; stroke-linecap:round;
+  transition:stroke-dashoffset .25s ease; filter:drop-shadow(0 0 6px rgba(15,158,158,.7)); }
+.prog-spin {
+  position:absolute; inset:-11px; border-radius:50%;
+  border:2px dashed rgba(255,255,255,.25); border-top-color:transparent;
+  animation:progspin 1.6s linear infinite;
+}
+@keyframes progspin { to { transform:rotate(360deg); } }
+.prog-pct {
+  position:absolute; inset:0; display:flex; align-items:center; justify-content:center;
+  color:#fff; font-size:27px; font-weight:700; font-variant-numeric:tabular-nums;
+}
+.prog-label { color:rgba(255,255,255,.85); font-size:14.5px; text-align:center; max-width:300px; line-height:1.6; }
 /* ---------- DONE PROJECT ROW ---------- */
 #view-projects .tbl tr.pj-done td { background:#eef0f3; }
 #view-projects .tbl tr.pj-done .pj-link,
@@ -568,6 +591,18 @@ table.tbl { width:100%; border-collapse:collapse; font-size:13.5px; }
 </style>
 </head>
 <body>
+
+<div class="prog-overlay" id="progOverlay">
+  <div class="prog-box">
+    <div class="prog-spin"></div>
+    <svg width="140" height="140" viewBox="0 0 140 140">
+      <circle class="prog-track" cx="70" cy="70" r="58"></circle>
+      <circle class="prog-bar" id="progBar" cx="70" cy="70" r="58"></circle>
+    </svg>
+    <div class="prog-pct" id="progPct">0%</div>
+  </div>
+  <div class="prog-label" id="progLabel"></div>
+</div>
 
 <div class="login-gate" id="loginGate">
   <div class="login-card" id="loginCard">
@@ -1080,6 +1115,7 @@ const I18N = {
     pNo:'ที่', pCode:'เลขที่ข้อเสนอ/สัญญาโครงการ', pName:'ชื่อโครงการ', pPI:'หัวหน้าโครงการ', pOrg:'สังกัด (หน่วยงาน/มหาวิทยาลัย)', pProgram:'โปรแกรม', pPlan:'แผนงาน',
     pEvalType:'ประเภทการประเมินของงานนี้', pJobId:'ID งาน (สร้างอัตโนมัติเมื่อบันทึก)', thJobId:'ID งาน',
     pDone:'✓ ประเมินเสร็จครบเรียบร้อยแล้ว (แถวจะแสดงเป็นสีเทา)', doneNote:'(ประเมินเสร็จเรียบร้อย)',
+    progUp:'กำลังบันทึกขึ้นคลาวด์...', progDown:'กำลังดึงข้อมูลจากคลาวด์...', progImport:'กำลังนำเข้าข้อมูล...', progDone:'เสร็จสิ้น!',
     pAnalyst:'นักวิเคราะห์ที่รับผิดชอบ (เชื่อมไปทุกงานประเมินของโครงการนี้)',
     assign:'Assign', edit:'แก้ไข',
     rvExpert:'ผู้ทรงคุณวุฒิ', rvProject:'เลือกโครงการจากทะเบียน (หรือพิมพ์ชื่อเองด้านล่าง)',
@@ -1189,6 +1225,7 @@ const I18N = {
     pNo:'No.', pCode:'Proposal/Contract number', pName:'Project name', pPI:'Principal Investigator', pOrg:'Affiliation', pProgram:'Program', pPlan:'Plan',
     pEvalType:'Evaluation type of this job', pJobId:'Job ID (auto-generated on save)', thJobId:'Job ID',
     pDone:'✓ Evaluation fully completed (row shown in gray)', doneNote:'(evaluation completed)',
+    progUp:'Pushing to cloud...', progDown:'Pulling from cloud...', progImport:'Importing data...', progDone:'Done!',
     pAnalyst:'Responsible analyst (linked to every review of this project)',
     assign:'Assign', edit:'Edit',
     rvExpert:'Expert', rvProject:'Pick a project from the registry (or type a name below)',
@@ -1551,6 +1588,40 @@ async function gh(path, opts={}){
   try { return JSON.parse(txt); }
   catch(e){ throw new Error(T('syncNetCut')); }
 }
+const PROG_C = 2*Math.PI*58;
+let progCreep = null;
+function setProgress(pct, label){
+  pct = Math.max(0, Math.min(100, Math.round(pct)));
+  const bar = document.getElementById('progBar');
+  bar.style.strokeDasharray = PROG_C;
+  bar.style.strokeDashoffset = PROG_C * (1 - pct/100);
+  document.getElementById('progPct').textContent = pct + '%';
+  if(label !== undefined) document.getElementById('progLabel').textContent = label;
+  document.getElementById('progOverlay').dataset.pct = pct;
+}
+function showProgress(label){
+  clearInterval(progCreep); progCreep = null;
+  setProgress(0, label);
+  document.getElementById('progOverlay').classList.add('show');
+}
+function creepTo(target, stepMs){
+  clearInterval(progCreep);
+  progCreep = setInterval(()=>{
+    const cur = parseInt(document.getElementById('progOverlay').dataset.pct||'0');
+    if(cur >= target){ clearInterval(progCreep); progCreep = null; return; }
+    setProgress(cur+1);
+  }, stepMs);
+}
+async function finishProgress(){
+  clearInterval(progCreep); progCreep = null;
+  setProgress(100, T('progDone'));
+  await new Promise(r=>setTimeout(r, 450));
+  hideProgress();
+}
+function hideProgress(){
+  clearInterval(progCreep); progCreep = null;
+  document.getElementById('progOverlay').classList.remove('show');
+}
 async function fetchRawText(url){
   const r = await fetch(url);
   if(!r.ok) throw new Error('HTTP '+r.status);
@@ -1569,7 +1640,9 @@ async function cloudPush(){
   if(!token){ toast(T('syncNoToken')); return; }
   try {
     setSyncStatus(T('syncPushing'));
+    showProgress(T('progUp'));
     const raw = JSON.stringify(collectPayload());
+    setProgress(8);
     const files = {};
     let n = 0;
     for(let i=0;i<raw.length;i+=CHUNK){ files['data_'+String(n).padStart(3,'0')+'.txt'] = {content: raw.slice(i,i+CHUNK)}; n++; }
@@ -1583,8 +1656,10 @@ async function cloudPush(){
           if(/^data_\d+\.txt$/.test(fn) && !(fn in files)) files[fn] = null;
         });
       } catch(e){ /* skip cleanup; manifest.chunks bounds all reads anyway */ }
+      setProgress(20); creepTo(88, 350);
       await withRetry(()=> gh('/gists/'+id, {method:'PATCH', body:JSON.stringify({files})}), 2);
     } else {
+      setProgress(20); creepTo(88, 350);
       const made = await withRetry(()=> gh('/gists', {method:'POST', body:JSON.stringify({
         description:'PMU-B Expert Base — data sync', public:false, files})}), 2);
       id = made.id;
@@ -1594,8 +1669,9 @@ async function cloudPush(){
     clearDirty();
     hideCloudBanner();
     refreshSyncUI();
+    await finishProgress();
     toast(T('syncPushed')(Math.round(raw.length/1024)));
-  } catch(e){ const m = humanSyncErr(e.message); setSyncStatus(T('syncErr')(m)); toast(T('syncErr')(m)); }
+  } catch(e){ hideProgress(); const m = humanSyncErr(e.message); setSyncStatus(T('syncErr')(m)); toast(T('syncErr')(m)); }
 }
 async function cloudPull(){
   const {gist} = syncCfg();
@@ -1603,29 +1679,35 @@ async function cloudPull(){
   if(!await appConfirm(T('syncConfirmPull'))) return;
   try {
     setSyncStatus(T('syncPulling'));
+    showProgress(T('progDown'));
     // 1) tiny call: find owner + pinned revision (immutable raw URLs, mobile-friendly)
     const commits = await withRetry(()=> gh('/gists/'+gist+'/commits?per_page=1'), 2);
     const head = Array.isArray(commits) && commits[0];
     if(!head || !head.user || !head.version) throw new Error('cloud is empty');
+    setProgress(8);
     const base = 'https://gist.githubusercontent.com/'+head.user.login+'/'+gist+'/raw/'+head.version+'/';
     // 2) small manifest
     let man;
     try { man = JSON.parse(await withRetry(()=> fetchRawText(base+'manifest.json'), 2)); }
     catch(e){ throw new Error(/^HTTP/.test(e.message) ? e.message : T('syncNetCut')); }
+    setProgress(14);
     // 3) chunks one-by-one, each with its own retry
     let raw = '';
     for(let i=0;i<man.chunks;i++){
       setSyncStatus(T('syncPullingN')(i+1, man.chunks));
+      setProgress(14 + ((i)/man.chunks)*76, T('progDown')+' ('+(i+1)+'/'+man.chunks+')');
       raw += await withRetry(()=> fetchRawText(base+'data_'+String(i).padStart(3,'0')+'.txt'), 3);
     }
     if(man.bytes && raw.length !== man.bytes) throw new Error(T('syncBytesMismatch')(raw.length, man.bytes));
+    setProgress(92, T('progImport'));
     await importJSON({ text: async ()=> raw });
     localStorage.setItem('peb_sync_at', new Date().toISOString());
     clearDirty();
     hideCloudBanner();
     refreshSyncUI();
+    await finishProgress();
     toast(T('syncPulled'));
-  } catch(e){ const m = humanSyncErr(e.message); setSyncStatus(T('syncErr')(m)); toast(T('syncErr')(m)); }
+  } catch(e){ hideProgress(); const m = humanSyncErr(e.message); setSyncStatus(T('syncErr')(m)); toast(T('syncErr')(m)); }
 }
 // ---------------- Cloud update notification ----------------
 let BOOTING = true;
@@ -1683,7 +1765,7 @@ function openPasteImport(){
   setTimeout(()=>ta.focus(), 80);
 }
 // ---------------- Simple login gate ----------------
-const APP_VERSION = 'v4.52';
+const APP_VERSION = 'v4.53';
 const ACCESS_CODE = 'global';
 function initLogin(){
   const gate = document.getElementById('loginGate');
