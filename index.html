@@ -1531,7 +1531,13 @@ function reviewsOf(id){ return REVIEWS.filter(r=>r.expertId===id); }
 function pendingOf(id){ return reviewsOf(id).filter(r=>!isClosed(r.status)); }
 function projectOf(id){ return PROJECTS.find(p=>p.id===id); }
 function expertOf(id){ return EXPERTS.find(e=>e.id===id); }
-function shortName(ex){ return ex ? [ex.prefix,ex.nameTh].filter(Boolean).join(' ') : '—'; }
+function joinPrefixName(prefix, name){
+  const p = (prefix||'').trim(), n = (name||'').trim();
+  if(!p) return n;
+  if(!n) return p;
+  return /[.\u0E00-\u0E7F]$/.test(p) && p.endsWith('.') ? p + n : p + ' ' + n;
+}
+function shortName(ex){ return ex ? joinPrefixName(ex.prefix, ex.nameTh) : '—'; }
 function ratingsOf(id){ return reviewsOf(id).filter(r=>r.rating>=1); }
 function touchExpert(ex){ ex.updatedAt = new Date().toISOString(); }
 function fmtDateTime(iso){
@@ -1845,7 +1851,7 @@ function openPasteImport(){
   setTimeout(()=>ta.focus(), 80);
 }
 // ---------------- Simple login gate ----------------
-const APP_VERSION = 'v4.57';
+const APP_VERSION = 'v4.60';
 const ACCESS_CODE = 'global';
 function initLogin(){
   const gate = document.getElementById('loginGate');
@@ -1980,7 +1986,7 @@ function renderSelPanel(on){
   document.getElementById('selPanelTitle').textContent = T('selPanelTitle')+' ('+selectedIds.size+')';
   const items = [...selectedIds].map(id=>EXPERTS.find(e=>e.id===id)).filter(Boolean);
   document.getElementById('selPanelBody').innerHTML = items.map(ex=>{
-    const nm = [ex.prefix, ex.nameTh].filter(Boolean).join(' ');
+    const nm = joinPrefixName(ex.prefix, ex.nameTh);
     const org = (ex.univ||'').trim();
     const av = ex.photo
       ? '<img class="sp-avatar" src="'+esc(ex.photo)+'" alt="">'
@@ -2012,7 +2018,7 @@ function exportSelectedXlsx(){
     .sort((a,b)=> (a.nameTh||'').localeCompare(b.nameTh||'','th'))
     .map((e,i)=>[
       i+1,
-      [e.prefix, e.nameTh].filter(Boolean).join(''),
+      joinPrefixName(e.prefix, e.nameTh),
       e.nameEn||'',
       [e.dept, e.fac, e.univ].filter(Boolean).join(' '),
       e.email||'',
@@ -2109,8 +2115,11 @@ function renderStats(){
 function renderFilters(){
   const sel = document.getElementById('fltUniv');
   const cur = filterUniv;
-  sel.innerHTML = '<option value="">'+esc(T('allUniv'))+'</option>' +
-    allUnivs().map(u=>'<option value="'+esc(u)+'">'+esc(u)+'</option>').join('');
+  const univCount = {};
+  EXPERTS.forEach(e=>{ const u=(e.univ||'').trim(); if(u) univCount[u]=(univCount[u]||0)+1; });
+  const univOpts = allUnivs();
+  sel.innerHTML = '<option value="">'+esc(T('allUniv'))+' ('+EXPERTS.length+')</option>' +
+    univOpts.map(u=>'<option value="'+esc(u)+'">'+esc(u)+' ('+(univCount[u]||0)+')</option>').join('');
   sel.value = cur;
   if(sel.value !== cur){ filterUniv=''; }
 
@@ -2263,7 +2272,7 @@ function renderGrid(){
       '<span class="sel-box'+(sel?' on':'')+'" data-sel="'+esc(ex.id)+'" role="checkbox" aria-checked="'+sel+'" title="เลือกเพื่อ Export">'+(sel?'✓':'')+'</span>' +
       '<div class="ec-top">'+avatar+
         '<div style="min-width:0">' +
-          '<div class="ec-name">'+esc([ex.prefix,ex.nameTh].filter(Boolean).join(' '))+'</div>' +
+          '<div class="ec-name">'+esc(joinPrefixName(ex.prefix, ex.nameTh))+'</div>' +
           (ex.nameEn?'<div class="ec-name-en">'+esc(ex.nameEn)+'</div>':'') +
           '<div class="ec-aff">'+esc(aff)+(aff?'<br>':'')+esc(ex.univ||'')+'</div>' +
         '</div>' +
@@ -2819,7 +2828,7 @@ function checkNewExperts(){
 function openNewExpModal(){
   const list = recentExperts();
   document.getElementById('newExpList').innerHTML = list.map(ex=>{
-    const nm = [ex.prefix, ex.nameTh].filter(Boolean).join(' ');
+    const nm = joinPrefixName(ex.prefix, ex.nameTh);
     const days = Math.floor((Date.now() - Date.parse(ex.createdAt))/(24*3600*1000));
     const when = days<=0 ? T('newExpToday') : T('newExpDays')(days);
     const av = ex.photo ? '<img class="ne-avatar" src="'+esc(ex.photo)+'" alt="">'
@@ -2944,7 +2953,7 @@ function renderDetail(){
   document.getElementById('detailBody').innerHTML =
     '<div class="detail-head">' + avatar +
       '<div style="flex:1;min-width:200px">' +
-        '<div class="detail-name">'+esc([ex.prefix,ex.nameTh].filter(Boolean).join(' '))+'</div>' +
+        '<div class="detail-name">'+esc(joinPrefixName(ex.prefix, ex.nameTh))+'</div>' +
         (ex.nameEn?'<div class="detail-sub">'+esc(ex.nameEn)+'</div>':'') +
         (avg!=null?'<div style="margin-top:4px">'+starsRead(avg, ratingsOf(ex.id).length)+'</div>':'') +
         '<div class="detail-aff">'+aff+'</div>' +
