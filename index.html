@@ -121,6 +121,7 @@ a:hover { text-decoration:underline; }
 .page-head h1 { font-size:25px; font-weight:600; line-height:1.2; }
 .page-head p { color:var(--ink-2); font-size:13.5px; }
 .page-head .spacer { flex:1; }
+.head-actions { margin-left:auto; display:flex; gap:8px; flex-wrap:wrap; }
 
 /* ---------- BUTTONS ---------- */
 .btn {
@@ -481,6 +482,17 @@ table.tbl { width:100%; border-collapse:collapse; font-size:13.5px; }
 .crop-zoom input[type=range] { flex:1; accent-color:var(--teal); }
 .crop-hint { text-align:center; font-size:12px; color:var(--ink-3); margin-top:8px; }
 @media (max-width:420px){ .crop-stage { width:260px; height:260px; } }
+.cloud-banner.newexp { border-color:var(--teal); background:linear-gradient(90deg, rgba(15,158,158,.13), rgba(11,46,88,.05)); }
+.newexp-list { display:flex; flex-direction:column; gap:2px; }
+.ne-item { display:flex; align-items:center; gap:11px; padding:9px 6px; border-radius:10px; }
+.ne-item + .ne-item { border-top:1px solid var(--line-2); }
+.ne-item:hover { background:var(--wash); }
+.ne-avatar { width:40px; height:40px; border-radius:50%; object-fit:cover; flex-shrink:0; background:var(--line-2);
+  display:flex; align-items:center; justify-content:center; font-weight:700; color:var(--ink-3); }
+.ne-info { flex:1; min-width:0; cursor:pointer; }
+.ne-name { font-size:13.5px; font-weight:600; color:var(--ink); }
+.ne-org { font-size:11.5px; color:var(--ink-3); }
+.ne-when { font-size:11px; color:var(--teal); white-space:nowrap; flex-shrink:0; }
 /* ---------- SYNC PROGRESS OVERLAY ---------- */
 .prog-overlay {
   position:fixed; inset:0; z-index:300; display:none;
@@ -674,6 +686,11 @@ table.tbl { width:100%; border-collapse:collapse; font-size:13.5px; }
 
 <!-- ============ MAIN ============ -->
 <div class="main">
+  <div class="cloud-banner newexp" id="newExpBanner">
+    <span>🆕</span><span id="newExpText"></span>
+    <button class="btn btn-teal btn-sm" id="newExpViewBtn" data-i18n="newExpView">ดูรายชื่อ</button>
+    <button class="cb-x" id="newExpX" title="ปิด">✕</button>
+  </div>
   <div class="cloud-banner dirty" id="dirtyBanner">
     <span>⚠️</span><span data-i18n="dirtyMsg">มีข้อมูลที่แก้ไขในเครื่องนี้ ยังไม่ได้บันทึกขึ้นระบบกลาง</span>
     <button class="btn btn-teal btn-sm" id="dirtyPushBtn" data-i18n="dirtyPush">⬆ อัพขึ้นคลาวด์เลย</button>
@@ -702,6 +719,10 @@ table.tbl { width:100%; border-collapse:collapse; font-size:13.5px; }
       <div>
         <h1 data-i18n="expertsTitle">ผู้ทรงคุณวุฒิ</h1>
         <p data-i18n="expertsSub">ทะเบียนผู้ทรงคุณวุฒิ ภาระงาน และคะแนนการประเมิน</p>
+      </div>
+      <div class="head-actions">
+        <button class="btn btn-ghost" id="exTmplBtn" data-i18n="exDownloadTmpl">⬇ Template ผู้ทรง</button>
+        <button class="btn btn-teal" id="exImportXlsxBtn" data-i18n="exImportXlsx">⬆ นำเข้าผู้ทรงจาก Excel</button>
       </div>
     </div>
     <div class="kpis">
@@ -1034,6 +1055,14 @@ table.tbl { width:100%; border-collapse:collapse; font-size:13.5px; }
   <button class="btn btn-teal btn-sm" id="exportSelBtn" data-i18n="exportSelected">⬇ Export Excel</button>
   <button class="btn btn-ghost btn-sm" id="clearSelBtn" style="background:rgba(255,255,255,.12);border-color:transparent;color:#fff" data-i18n="clearSelection">ล้างการเลือก</button>
 </div>
+<div class="overlay layer-top" id="newExpModal">
+  <div class="modal" style="max-width:520px">
+    <button class="close-x" data-close="newExpModal">✕</button>
+    <h2 data-i18n="newExpTitle">🆕 ผู้ทรงคุณวุฒิที่เพิ่มใหม่ (7 วันล่าสุด)</h2>
+    <div class="newexp-list" id="newExpList" style="max-height:56vh;overflow-y:auto;margin-top:12px"></div>
+  </div>
+</div>
+<input type="file" id="exXlsxInput" accept=".xlsx,.xls" style="display:none">
 <div class="overlay layer-top" id="textDataModal">
   <div class="modal" style="max-width:640px">
     <button class="close-x" data-close="textDataModal">✕</button>
@@ -1144,6 +1173,12 @@ const I18N = {
     dept:'ภาควิชา', fac:'คณะ', univ:'มหาวิทยาลัย / สถาบันวิจัย', expertise:'ความเชี่ยวชาญ (คั่นด้วยเครื่องหมาย , )',
     urls:'เว็บไซต์ / ลิงก์ (เพิ่มได้หลายลิงก์)', addUrl:'+ เพิ่มลิงก์', email:'อีเมล', phone:'โทรศัพท์', notes:'หมายเหตุ',
     selPanelTitle:'ผู้ทรงที่เลือกไว้', selRemove:'เอาออกจากรายการ',
+    exDownloadTmpl:'⬇ Template ผู้ทรง', exImportXlsx:'⬆ นำเข้าผู้ทรงจาก Excel',
+    exImported:(n,skip)=>'นำเข้าผู้ทรงใหม่ '+n+' ท่าน'+(skip?' (ข้ามชื่อซ้ำ '+skip+' ท่าน)':''),
+    exImportNoRow:'ไม่พบข้อมูลผู้ทรงในไฟล์ — ตรวจว่ามีคอลัมน์ "ชื่อ-นามสกุล (ไทย)" และกรอกข้อมูลอย่างน้อย 1 แถว',
+    newExpTitle:'🆕 ผู้ทรงคุณวุฒิที่เพิ่มใหม่ (7 วันล่าสุด)', newExpView:'ดูรายชื่อ',
+    newExpMsg:(n)=>'มีผู้ทรงคุณวุฒิเพิ่มใหม่ '+n+' ท่าน ในรอบ 7 วันที่ผ่านมา',
+    newExpToday:'วันนี้', newExpDays:(d)=>d+' วันก่อน',
     expNotes:'📝 ประเด็นที่สนใจ (แสดงบนการ์ดผู้ทรง)', expRemark:'🗒 หมายเหตุอื่นๆ (คอมเมนต์เพิ่มเติมเกี่ยวกับผู้ทรงท่านนี้)', remarkLabel:'หมายเหตุ:',
     delete:'ลบผู้ทรงคุณวุฒิ', cancel:'ยกเลิก', save:'บันทึก', doneBtn:'เสร็จสิ้น', confirmDo:'ยืนยันลบ', confirmTitle:'ยืนยันการลบ',
     addProject:'+ เพิ่มโครงการ', editProjectTitle:'แก้ไขโครงการ', addProjectTitle:'เพิ่มโครงการ', deleteProject:'ลบโครงการ',
@@ -1256,6 +1291,12 @@ const I18N = {
     dept:'Department', fac:'Faculty', univ:'University / Research Institute', expertise:'Expertise (comma-separated)',
     urls:'Websites / Links (multiple allowed)', addUrl:'+ Add link', email:'Email', phone:'Phone', notes:'Notes',
     selPanelTitle:'Selected experts', selRemove:'Remove from list',
+    exDownloadTmpl:'⬇ Expert template', exImportXlsx:'⬆ Import experts from Excel',
+    exImported:(n,skip)=>'Imported '+n+' experts'+(skip?' ('+skip+' duplicates skipped)':''),
+    exImportNoRow:'No expert rows found — check that the "ชื่อ-นามสกุล (ไทย)" column exists and has at least one row',
+    newExpTitle:'🆕 Recently added experts (last 7 days)', newExpView:'View list',
+    newExpMsg:(n)=>n+' new experts added in the last 7 days',
+    newExpToday:'today', newExpDays:(d)=>d+' days ago',
     expNotes:'📝 Research interests (shown on card)', expRemark:'🗒 Other remarks (additional comments about this expert)', remarkLabel:'Remarks:',
     delete:'Delete expert', cancel:'Cancel', save:'Save', doneBtn:'Done', confirmDo:'Delete', confirmTitle:'Confirm deletion',
     addProject:'+ Add Project', editProjectTitle:'Edit Project', addProjectTitle:'Add Project', deleteProject:'Delete project',
@@ -1743,6 +1784,7 @@ async function cloudPull(){
     clearDirty();
     hideCloudBanner();
     refreshSyncUI();
+    checkNewExperts();
     await finishProgress();
     toast(T('syncPulled'));
   } catch(e){ hideProgress(); const m = humanSyncErr(e.message); setSyncStatus(T('syncErr')(m)); toast(T('syncErr')(m)); }
@@ -1803,7 +1845,7 @@ function openPasteImport(){
   setTimeout(()=>ta.focus(), 80);
 }
 // ---------------- Simple login gate ----------------
-const APP_VERSION = 'v4.56';
+const APP_VERSION = 'v4.57';
 const ACCESS_CODE = 'global';
 function initLogin(){
   const gate = document.getElementById('loginGate');
@@ -2674,6 +2716,125 @@ function downloadTemplate(){
   XLSX.writeFile(wb, 'PMUB_Projects_Template.xlsx');
 }
 
+const EX_TMPL_HEADERS = ['คำนำหน้า','ชื่อ-นามสกุล (ไทย)*','ชื่อ-นามสกุล (อังกฤษ)','ภาควิชา/สาขาวิชา','คณะ','มหาวิทยาลัย/สถาบัน*','ความเชี่ยวชาญ (คั่นด้วย , )*','อีเมล','โทรศัพท์','ประเด็นที่สนใจ','หมายเหตุ','ชื่อลิงก์ 1','URL 1','ชื่อลิงก์ 2','URL 2'];
+function downloadExpertTemplate(){
+  if(!xlsxReady()){ toast(T('xlsxNeedLib')); return; }
+  const example = ['รศ. ดร.','สมชาย ตัวอย่าง','Assoc. Prof. Dr. Somchai Tuayang','ภาควิชาวิศวกรรมเคมี','คณะวิศวกรรมศาสตร์','มหาวิทยาลัยตัวอย่าง',
+    'Biotechnology, Clean Energy, Carbon Capture','somchai@example.ac.th','02-123-4567','สนใจงานด้าน CCUS และไฮโดรเจน','ตอบอีเมลเร็ว',
+    'Bio','https://example.ac.th/staff/somchai','Scopus','https://scopus.com/authid/xxxx'];
+  const ws = XLSX.utils.aoa_to_sheet([EX_TMPL_HEADERS, example]);
+  ws['!cols'] = [{wch:10},{wch:26},{wch:34},{wch:26},{wch:24},{wch:28},{wch:46},{wch:26},{wch:16},{wch:30},{wch:24},{wch:14},{wch:36},{wch:14},{wch:36}];
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'Experts');
+  XLSX.writeFile(wb, 'PMUB_Experts_Template.xlsx');
+}
+async function importExpertsXlsx(file){
+  if(!xlsxReady()){ toast(T('xlsxNeedLib')); return; }
+  try {
+    const buf = await file.arrayBuffer();
+    const wb = XLSX.read(buf, {type:'array'});
+    const ws = wb.Sheets[wb.SheetNames[0]];
+    const rows = XLSX.utils.sheet_to_json(ws, {header:1, defval:''});
+    const normH = s => String(s).replace(/\s+/g,'').toLowerCase();
+    let hi = -1, map = {};
+    for(let i=0;i<Math.min(rows.length,15);i++){
+      const cells = rows[i].map(normH);
+      const nameIdx = cells.findIndex(c=>c.includes('ไทย') || c==='nameth' || c.includes('ชื่อ-นามสกุล'));
+      if(nameIdx>=0){
+        hi = i;
+        cells.forEach((c,ci)=>{
+          if(c.includes('คำนำหน้า')||c.includes('prefix')||c.includes('title')) map.prefix=ci;
+          else if(c.includes('ไทย')||c==='nameth') map.nameTh=ci;
+          else if(c.includes('อังกฤษ')||c==='nameen') map.nameEn=ci;
+          else if(c.includes('ภาควิชา')||c.includes('สาขาวิชา')||c.includes('department')) map.dept=ci;
+          else if(c.includes('คณะ')||c.includes('faculty')) map.fac=ci;
+          else if(c.includes('มหาวิทยาลัย')||c.includes('สถาบัน')||c.includes('university')) map.univ=ci;
+          else if(c.includes('ความเชี่ยวชาญ')||c.includes('expertise')) map.expertise=ci;
+          else if(c.includes('อีเมล')||c.includes('email')) map.email=ci;
+          else if(c.includes('โทร')||c.includes('phone')) map.phone=ci;
+          else if(c.includes('ประเด็น')||c.includes('interest')) map.notes=ci;
+          else if(c.includes('หมายเหตุ')||c.includes('remark')) map.remark=ci;
+          else if(c.includes('ชื่อลิงก์1')||c.includes('linklabel1')) map.l1=ci;
+          else if(c.includes('url1')) map.u1=ci;
+          else if(c.includes('ชื่อลิงก์2')||c.includes('linklabel2')) map.l2=ci;
+          else if(c.includes('url2')) map.u2=ci;
+        });
+        break;
+      }
+    }
+    if(hi<0 || map.nameTh==null) throw new Error('no header');
+    const get = (r,k)=> map[k]!=null ? String(r[map[k]]??'').trim() : '';
+    const existing = new Set(EXPERTS.map(e=>(e.nameTh||'').replace(/\s+/g,'')));
+    const now = new Date().toISOString();
+    let added = 0, skipped = 0;
+    for(let i=hi+1;i<rows.length;i++){
+      const r = rows[i];
+      const nameTh = get(r,'nameTh');
+      if(!nameTh) continue;
+      if(existing.has(nameTh.replace(/\s+/g,''))){ skipped++; continue; }
+      const urls = [];
+      [['l1','u1'],['l2','u2']].forEach(([lk,uk])=>{
+        const u = safeUrl(get(r,uk));
+        if(u) urls.push({label:get(r,lk)||'Bio', url:u});
+      });
+      const ex = {
+        id: uid(), photo:'',
+        prefix:get(r,'prefix'), nameTh, nameEn:get(r,'nameEn'),
+        dept:get(r,'dept'), fac:get(r,'fac'), univ:get(r,'univ'),
+        expertise:[...new Set(get(r,'expertise').split(',').map(s=>normTag(s)).filter(Boolean))],
+        urls, email:get(r,'email'), phone:get(r,'phone'),
+        notes:get(r,'notes'), remark:get(r,'remark'),
+        flags:[], comments:[], createdAt:now, updatedAt:now
+      };
+      await dbPut('experts', ex);
+      EXPERTS.push(ex);
+      existing.add(nameTh.replace(/\s+/g,''));
+      added++;
+    }
+    if(!added && !skipped) throw new Error('no rows');
+    renderAll();
+    checkNewExperts();
+    toast(I18N[LANG].exImported(added, skipped));
+  } catch(e){
+    toast(e.message==='no rows' || e.message==='no header' ? T('exImportNoRow') : T('xlsxErr'));
+  }
+}
+// ---------------- New expert notification (7 days) ----------------
+function recentExperts(){
+  const cut = Date.now() - 7*24*3600*1000;
+  return EXPERTS.filter(e=>{
+    const t = Date.parse(e.createdAt||'');
+    return !isNaN(t) && t >= cut;
+  }).sort((a,b)=> Date.parse(b.createdAt) - Date.parse(a.createdAt));
+}
+function checkNewExperts(){
+  const list = recentExperts();
+  const bar = document.getElementById('newExpBanner');
+  const key = list.length ? list[0].createdAt+'|'+list.length : '';
+  const show = list.length>0 && sessionStorage.getItem('peb_newexp_hide') !== key;
+  bar.dataset.key = key;
+  document.getElementById('newExpText').textContent = T('newExpMsg')(list.length);
+  bar.classList.toggle('show', show);
+}
+function openNewExpModal(){
+  const list = recentExperts();
+  document.getElementById('newExpList').innerHTML = list.map(ex=>{
+    const nm = [ex.prefix, ex.nameTh].filter(Boolean).join(' ');
+    const days = Math.floor((Date.now() - Date.parse(ex.createdAt))/(24*3600*1000));
+    const when = days<=0 ? T('newExpToday') : T('newExpDays')(days);
+    const av = ex.photo ? '<img class="ne-avatar" src="'+esc(ex.photo)+'" alt="">'
+      : '<div class="ne-avatar">'+esc((ex.nameTh||'?').trim().charAt(0))+'</div>';
+    return '<div class="ne-item">'+av+
+      '<div class="ne-info" data-neopen="'+esc(ex.id)+'">'+
+        '<div class="ne-name">'+esc(nm)+'</div>'+
+        (ex.univ?'<div class="ne-org">'+esc(ex.univ)+'</div>':'')+
+      '</div><span class="ne-when">'+esc(when)+'</span></div>';
+  }).join('');
+  document.getElementById('newExpList').querySelectorAll('[data-neopen]').forEach(el=>{
+    el.addEventListener('click', ()=>{ closeModal('newExpModal'); openDetail(el.dataset.neopen); });
+  });
+  openModal('newExpModal');
+}
 async function importProjectsXlsx(file){
   if(!xlsxReady()){ toast(T('xlsxNeedLib')); return; }
   try {
@@ -3432,6 +3593,19 @@ window.addEventListener('DOMContentLoaded', async ()=>{
     p.classList.toggle('collapsed');
     document.getElementById('selPanelToggle').textContent = p.classList.contains('collapsed') ? '▸' : '▾';
   });
+  document.getElementById('exTmplBtn').addEventListener('click', downloadExpertTemplate);
+  document.getElementById('exImportXlsxBtn').addEventListener('click', ()=> document.getElementById('exXlsxInput').click());
+  document.getElementById('exXlsxInput').addEventListener('change', (e)=>{
+    const f = e.target.files[0];
+    if(f) importExpertsXlsx(f);
+    e.target.value='';
+  });
+  document.getElementById('newExpViewBtn').addEventListener('click', openNewExpModal);
+  document.getElementById('newExpX').addEventListener('click', ()=>{
+    sessionStorage.setItem('peb_newexp_hide', document.getElementById('newExpBanner').dataset.key||'x');
+    document.getElementById('newExpBanner').classList.remove('show');
+  });
+  checkNewExperts();
   document.getElementById('tmplBtn').addEventListener('click', downloadTemplate);
   document.getElementById('importXlsxBtn').addEventListener('click', ()=> document.getElementById('xlsxInput').click());
   document.getElementById('xlsxInput').addEventListener('change', (e)=>{
