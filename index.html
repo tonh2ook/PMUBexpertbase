@@ -749,6 +749,7 @@ table.tbl { width:100%; border-collapse:collapse; font-size:13.5px; }
         <option value="hasPending">มีงานค้าง</option>
         <option value="free">ไม่มีงานค้าง</option>
       </select>
+      <button class="btn btn-ghost btn-sm" id="clearExpFlt" data-i18n="clearFilters">✕ ล้างตัวกรอง</button>
     </div>
     <div class="chips-row" id="expChips"></div>
     <div class="egrid" id="expertGrid"></div>
@@ -1883,7 +1884,7 @@ function openPasteImport(){
   setTimeout(()=>ta.focus(), 80);
 }
 // ---------------- Simple login gate ----------------
-const APP_VERSION = 'v4.62';
+const APP_VERSION = 'v4.63';
 const ACCESS_CODE = 'global';
 function initLogin(){
   const gate = document.getElementById('loginGate');
@@ -3629,6 +3630,14 @@ window.addEventListener('DOMContentLoaded', async ()=>{
   sInput.addEventListener('blur', ()=>{ setTimeout(()=>document.getElementById('sugBox').classList.remove('show'), 150); });
   document.getElementById('fltUniv').addEventListener('change', (e)=>{ filterUniv = e.target.value; renderGrid(); });
   document.getElementById('fltTitle').addEventListener('change', (e)=>{ filterTitle = e.target.value; renderGrid(); });
+  document.getElementById('clearExpFlt').addEventListener('click', ()=>{
+    filterUniv=''; filterTitle=''; filterStatus=''; filterText=''; activeTag=''; activeLetter='';
+    document.getElementById('searchInput').value='';
+    document.getElementById('fltUniv').value='';
+    document.getElementById('fltTitle').value='';
+    document.getElementById('fltStatus').value='';
+    renderFilters(); renderGrid();
+  });
   document.getElementById('fltStatus').addEventListener('change', (e)=>{ filterStatus = e.target.value; renderGrid(); });
   document.getElementById('rvFltStatus').addEventListener('change', (e)=>{ rvFltStatus = e.target.value; renderReviewsTable(); });
   document.getElementById('rvFltType').addEventListener('change', (e)=>{ rvFltType = e.target.value; renderReviewsTable(); });
