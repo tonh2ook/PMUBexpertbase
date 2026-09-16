@@ -1910,7 +1910,7 @@ function openPasteImport(){
   setTimeout(()=>ta.focus(), 80);
 }
 // ---------------- Simple login gate ----------------
-const APP_VERSION = 'v4.64';
+const APP_VERSION = 'v4.65';
 const ACCESS_CODE = 'global';
 function initLogin(){
   const gate = document.getElementById('loginGate');
@@ -3285,7 +3285,7 @@ function openReviewForm(r, opts){
   fillProjectSelect(r?.projectId || opts.projectId || '');
   const pj = (r?.projectId || opts.projectId) ? projectOf(r?.projectId || opts.projectId) : null;
   document.getElementById('rProj').value = pj ? pj.name : (r?.proj || '');
-  document.getElementById('rType').value = r?.type||'proposal';
+  document.getElementById('rType').value = r?.type || pj?.evalType || 'proposal';
   document.getElementById('rProgram').value = r?.program || pj?.program || '';
   document.getElementById('rPlan').value = r?.plan || pj?.plan || '';
   document.getElementById('rYear').value = r?.year || pj?.year || '2568';
@@ -3642,6 +3642,7 @@ window.addEventListener('DOMContentLoaded', async ()=>{
       if(pj.plan) document.getElementById('rPlan').value = pj.plan;
       if(pj.analyst) document.getElementById('rAnalyst').value = pj.analyst;
       if(pj.year) document.getElementById('rYear').value = pj.year;
+      if(pj.evalType) document.getElementById('rType').value = pj.evalType;
     }
   });
 
