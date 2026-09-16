@@ -1010,7 +1010,7 @@ table.tbl { width:100%; border-collapse:collapse; font-size:13.5px; }
       <div class="fld"><label data-i18n="rvAnalyst">นักวิเคราะห์ที่รับผิดชอบ</label><input id="rAnalyst" list="analystList"><datalist id="analystList"></datalist>
 <datalist id="linkLabelList"></datalist>
 <datalist id="orgList"></datalist></div>
-      <div class="fld"><label data-i18n="rvLetter">อ้างอิงหนังสือ บพค. เลขที่</label><input id="rLetter" placeholder="เช่น อว 6203/xxxx"></div>
+      <div class="fld"><label data-i18n="rvLetter">อ้างอิงหนังสือ บพค. เลขที่</label><input id="rLetter" data-i18n-ph="rvLetterPh" placeholder="เช่น อว 9100/xxxx"></div>
       <div class="fld"><label data-i18n="rvAssigned">วันที่มอบหมาย (ตามหนังสือ)</label><input id="rAssigned" type="date"></div>
       <div class="fld"><label data-i18n="rvDone">วันที่ประเมินเสร็จ</label><input id="rDone" type="date"></div>
       <div class="fld full">
@@ -1226,7 +1226,7 @@ const I18N = {
     pEvalType:'ประเภทการประเมินของงานนี้', pJobId:'ID งาน (สร้างอัตโนมัติเมื่อบันทึก)', thJobId:'ID งาน',
     pDone:'✓ ประเมินเสร็จครบเรียบร้อยแล้ว (แถวจะแสดงเป็นสีเทา)', doneNote:'(ประเมินเสร็จเรียบร้อย)',
     thStatus:'สถานะ', stDone:'ประเมินเสร็จ', stWait:'รอประเมิน',
-    rvExpertPh:'พิมพ์ชื่อผู้ทรง หรือสังกัด เพื่อค้นหา...', cbxNoMatch:'ไม่พบผู้ทรงที่ตรงกับคำค้น',
+    rvExpertPh:'พิมพ์ชื่อผู้ทรง หรือสังกัด เพื่อค้นหา...', rvLetterPh:'เช่น อว 9100/xxxx', cbxNoMatch:'ไม่พบผู้ทรงที่ตรงกับคำค้น',
     stToggled:(dn)=>dn?'ทำเครื่องหมายว่าประเมินเสร็จแล้ว':'เปลี่ยนกลับเป็นรอประเมิน',
     progUp:'กำลังบันทึกขึ้นคลาวด์...', progDown:'กำลังดึงข้อมูลจากคลาวด์...', progImport:'กำลังนำเข้าข้อมูล...', progDone:'เสร็จสิ้น!',
     pAnalyst:'นักวิเคราะห์ที่รับผิดชอบ (เชื่อมไปทุกงานประเมินของโครงการนี้)',
@@ -1348,7 +1348,7 @@ const I18N = {
     pEvalType:'Evaluation type of this job', pJobId:'Job ID (auto-generated on save)', thJobId:'Job ID',
     pDone:'✓ Evaluation fully completed (row shown in gray)', doneNote:'(evaluation completed)',
     thStatus:'Status', stDone:'Completed', stWait:'Pending',
-    rvExpertPh:'Type a name or affiliation to search...', cbxNoMatch:'No matching expert',
+    rvExpertPh:'Type a name or affiliation to search...', rvLetterPh:'e.g. อว 9100/xxxx', cbxNoMatch:'No matching expert',
     stToggled:(dn)=>dn?'Marked as completed':'Moved back to pending',
     progUp:'Pushing to cloud...', progDown:'Pulling from cloud...', progImport:'Importing data...', progDone:'Done!',
     pAnalyst:'Responsible analyst (linked to every review of this project)',
@@ -1910,7 +1910,7 @@ function openPasteImport(){
   setTimeout(()=>ta.focus(), 80);
 }
 // ---------------- Simple login gate ----------------
-const APP_VERSION = 'v4.65';
+const APP_VERSION = 'v4.66';
 const ACCESS_CODE = 'global';
 function initLogin(){
   const gate = document.getElementById('loginGate');
