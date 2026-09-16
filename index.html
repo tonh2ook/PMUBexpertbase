@@ -543,6 +543,23 @@ table.tbl { width:100%; border-collapse:collapse; font-size:13.5px; }
 #view-projects .tbl th:nth-child(10), #view-projects .tbl td:nth-child(10){ width:4%; }
 #view-projects .tbl th:nth-child(11), #view-projects .tbl td:nth-child(11){ width:9%; }
 #view-projects .tbl th:nth-child(12), #view-projects .tbl td:nth-child(12){ width:6.5%; }
+.cbx-wrap { position:relative; }
+.cbx-list {
+  position:absolute; left:0; right:0; top:100%; z-index:40; margin-top:4px;
+  background:var(--paper); border:1px solid var(--line); border-radius:12px;
+  box-shadow:var(--shadow-l); max-height:270px; overflow-y:auto; display:none;
+}
+.cbx-list.show { display:block; }
+.cbx-item { padding:9px 13px; cursor:pointer; font-size:13.5px; line-height:1.45; }
+.cbx-item + .cbx-item { border-top:1px solid var(--line-2); }
+.cbx-item:hover, .cbx-item.act { background:var(--wash); }
+.cbx-item .cbx-org { font-size:11.5px; color:var(--ink-3); }
+.cbx-empty { padding:12px 13px; font-size:12.5px; color:var(--ink-3); }
+.cbx-clear {
+  position:absolute; right:9px; top:50%; transform:translateY(-50%);
+  border:none; background:none; cursor:pointer; color:var(--ink-3); font-size:14px; padding:3px 5px; display:none;
+}
+.cbx-clear.show { display:block; }
 .pj-status {
   display:inline-flex; align-items:center; gap:5px; cursor:pointer;
   padding:5px 10px; border-radius:20px; font-size:11.5px; font-weight:600;
@@ -967,7 +984,14 @@ table.tbl { width:100%; border-collapse:collapse; font-size:13.5px; }
     <button class="close-x" data-close="reviewModal">✕</button>
     <h2 id="reviewModalTitle">มอบหมายงานประเมิน</h2>
     <div class="frm">
-      <div class="fld full"><label class="req" data-i18n="rvExpert">ผู้ทรงคุณวุฒิ</label><select id="rExpert"></select></div>
+      <div class="fld full"><label class="req" data-i18n="rvExpert">ผู้ทรงคุณวุฒิ</label>
+        <div class="cbx-wrap">
+          <input type="text" id="rExpertSearch" autocomplete="off" data-i18n-ph="rvExpertPh" placeholder="พิมพ์ชื่อผู้ทรง หรือสังกัด เพื่อค้นหา...">
+          <button type="button" class="cbx-clear" id="rExpertClear" title="ล้าง">✕</button>
+          <input type="hidden" id="rExpert">
+          <div class="cbx-list" id="rExpertList"></div>
+        </div>
+      </div>
       <div class="fld full"><label data-i18n="rvProject">เลือกโครงการจากทะเบียน (หรือพิมพ์ชื่อเองด้านล่าง)</label><select id="rProject"><option value=""></option></select></div>
       <div class="fld full"><label class="req" data-i18n="rvProj">ชื่อโครงการ / เรื่องที่ประเมิน</label><input id="rProj"></div>
       <div class="fld"><label class="req" data-i18n="rvType">ประเภทงาน</label>
@@ -1202,6 +1226,7 @@ const I18N = {
     pEvalType:'ประเภทการประเมินของงานนี้', pJobId:'ID งาน (สร้างอัตโนมัติเมื่อบันทึก)', thJobId:'ID งาน',
     pDone:'✓ ประเมินเสร็จครบเรียบร้อยแล้ว (แถวจะแสดงเป็นสีเทา)', doneNote:'(ประเมินเสร็จเรียบร้อย)',
     thStatus:'สถานะ', stDone:'ประเมินเสร็จ', stWait:'รอประเมิน',
+    rvExpertPh:'พิมพ์ชื่อผู้ทรง หรือสังกัด เพื่อค้นหา...', cbxNoMatch:'ไม่พบผู้ทรงที่ตรงกับคำค้น',
     stToggled:(dn)=>dn?'ทำเครื่องหมายว่าประเมินเสร็จแล้ว':'เปลี่ยนกลับเป็นรอประเมิน',
     progUp:'กำลังบันทึกขึ้นคลาวด์...', progDown:'กำลังดึงข้อมูลจากคลาวด์...', progImport:'กำลังนำเข้าข้อมูล...', progDone:'เสร็จสิ้น!',
     pAnalyst:'นักวิเคราะห์ที่รับผิดชอบ (เชื่อมไปทุกงานประเมินของโครงการนี้)',
@@ -1323,6 +1348,7 @@ const I18N = {
     pEvalType:'Evaluation type of this job', pJobId:'Job ID (auto-generated on save)', thJobId:'Job ID',
     pDone:'✓ Evaluation fully completed (row shown in gray)', doneNote:'(evaluation completed)',
     thStatus:'Status', stDone:'Completed', stWait:'Pending',
+    rvExpertPh:'Type a name or affiliation to search...', cbxNoMatch:'No matching expert',
     stToggled:(dn)=>dn?'Marked as completed':'Moved back to pending',
     progUp:'Pushing to cloud...', progDown:'Pulling from cloud...', progImport:'Importing data...', progDone:'Done!',
     pAnalyst:'Responsible analyst (linked to every review of this project)',
@@ -1884,7 +1910,7 @@ function openPasteImport(){
   setTimeout(()=>ta.focus(), 80);
 }
 // ---------------- Simple login gate ----------------
-const APP_VERSION = 'v4.63';
+const APP_VERSION = 'v4.64';
 const ACCESS_CODE = 'global';
 function initLogin(){
   const gate = document.getElementById('loginGate');
@@ -3193,12 +3219,57 @@ function fillProjectSelect(selectedId){
     .map(p=>'<option value="'+esc(p.id)+'">'+esc((p.name+(p.code?' ['+p.code+']':'')).slice(0,95))+'</option>').join('');
   sel.value = selectedId||'';
 }
+let cbxAct = -1, cbxItems = [];
+function expertLabel(e){ return shortName(e) + (e.univ ? ' · ' + e.univ : ''); }
 function fillExpertSelect(selectedId){
-  const sel = document.getElementById('rExpert');
-  sel.innerHTML = '<option value=""></option>' + EXPERTS
-    .slice().sort((a,b)=> (a.nameTh||'').localeCompare(b.nameTh||'','th'))
-    .map(e=>'<option value="'+esc(e.id)+'">'+esc(shortName(e))+' · '+esc(e.univ||'')+'</option>').join('');
-  sel.value = selectedId||'';
+  const hid = document.getElementById('rExpert');
+  const inp = document.getElementById('rExpertSearch');
+  hid.value = selectedId || '';
+  const ex = selectedId ? EXPERTS.find(e=>e.id===selectedId) : null;
+  inp.value = ex ? expertLabel(ex) : '';
+  document.getElementById('rExpertClear').classList.toggle('show', !!inp.value);
+  closeExpertCbx();
+}
+function closeExpertCbx(){
+  document.getElementById('rExpertList').classList.remove('show');
+  cbxAct = -1; cbxItems = [];
+}
+function renderExpertCbx(q){
+  const box = document.getElementById('rExpertList');
+  const ql = (q||'').trim().toLowerCase();
+  let list = EXPERTS.slice().sort((a,b)=> (a.nameTh||'').localeCompare(b.nameTh||'','th'));
+  if(ql){
+    list = list.filter(e=>{
+      const hay = [e.prefix, e.nameTh, e.nameEn, e.univ, e.dept, e.fac, e.email].join(' ').toLowerCase();
+      return ql.split(/\s+/).every(part=> hay.includes(part));
+    });
+  }
+  cbxItems = list.slice(0, 60);
+  cbxAct = -1;
+  box.innerHTML = cbxItems.length
+    ? cbxItems.map((e,i)=>'<div class="cbx-item" data-cbx="'+esc(e.id)+'" data-i="'+i+'">'+
+        esc(shortName(e)) + (e.univ?'<div class="cbx-org">'+esc(e.univ)+'</div>':'') + '</div>').join('')
+    : '<div class="cbx-empty">'+esc(T('cbxNoMatch'))+'</div>';
+  box.classList.add('show');
+  box.querySelectorAll('[data-cbx]').forEach(el=>{
+    el.addEventListener('mousedown', (ev)=>{ ev.preventDefault(); pickExpertCbx(el.dataset.cbx); });
+  });
+}
+function pickExpertCbx(id){
+  const ex = EXPERTS.find(e=>e.id===id);
+  if(!ex) return;
+  document.getElementById('rExpert').value = ex.id;
+  document.getElementById('rExpertSearch').value = expertLabel(ex);
+  document.getElementById('rExpertClear').classList.add('show');
+  closeExpertCbx();
+}
+function moveExpertCbx(delta){
+  if(!cbxItems.length) return;
+  cbxAct = (cbxAct + delta + cbxItems.length) % cbxItems.length;
+  const box = document.getElementById('rExpertList');
+  box.querySelectorAll('.cbx-item').forEach(el=> el.classList.toggle('act', parseInt(el.dataset.i)===cbxAct));
+  const act = box.querySelector('.cbx-item.act');
+  if(act && act.scrollIntoView) act.scrollIntoView({block:'nearest'});
 }
 
 function openReviewForm(r, opts){
@@ -3229,7 +3300,7 @@ function openReviewForm(r, opts){
   renderStepsEdit();
   renderRatingStars();
   openModal('reviewModal');
-  setTimeout(()=> document.getElementById(r||opts.expertId?'rProj':'rExpert').focus(), 60);
+  setTimeout(()=> document.getElementById(r||opts.expertId?'rProj':'rExpertSearch').focus(), 60);
 }
 
 async function saveReview(){
@@ -3630,6 +3701,39 @@ window.addEventListener('DOMContentLoaded', async ()=>{
   sInput.addEventListener('blur', ()=>{ setTimeout(()=>document.getElementById('sugBox').classList.remove('show'), 150); });
   document.getElementById('fltUniv').addEventListener('change', (e)=>{ filterUniv = e.target.value; renderGrid(); });
   document.getElementById('fltTitle').addEventListener('change', (e)=>{ filterTitle = e.target.value; renderGrid(); });
+  (function wireExpertCbx(){
+    const inp = document.getElementById('rExpertSearch');
+    const clr = document.getElementById('rExpertClear');
+    inp.addEventListener('input', ()=>{
+      document.getElementById('rExpert').value = '';
+      clr.classList.toggle('show', !!inp.value);
+      renderExpertCbx(inp.value);
+    });
+    inp.addEventListener('focus', ()=> renderExpertCbx(document.getElementById('rExpert').value ? '' : inp.value));
+    inp.addEventListener('keydown', (e)=>{
+      if(e.key==='ArrowDown'){ e.preventDefault(); moveExpertCbx(1); }
+      else if(e.key==='ArrowUp'){ e.preventDefault(); moveExpertCbx(-1); }
+      else if(e.key==='Enter'){
+        if(cbxAct>=0 && cbxItems[cbxAct]){ e.preventDefault(); pickExpertCbx(cbxItems[cbxAct].id); }
+        else if(cbxItems.length===1){ e.preventDefault(); pickExpertCbx(cbxItems[0].id); }
+      }
+      else if(e.key==='Escape'){ closeExpertCbx(); }
+    });
+    inp.addEventListener('blur', ()=> setTimeout(()=>{
+      closeExpertCbx();
+      const hid = document.getElementById('rExpert');
+      if(!hid.value){ inp.value=''; clr.classList.remove('show'); }
+      else {
+        const ex = EXPERTS.find(x=>x.id===hid.value);
+        if(ex) inp.value = expertLabel(ex);
+      }
+    }, 130));
+    clr.addEventListener('click', ()=>{
+      document.getElementById('rExpert').value='';
+      inp.value=''; clr.classList.remove('show');
+      inp.focus(); renderExpertCbx('');
+    });
+  })();
   document.getElementById('clearExpFlt').addEventListener('click', ()=>{
     filterUniv=''; filterTitle=''; filterStatus=''; filterText=''; activeTag=''; activeLetter='';
     document.getElementById('searchInput').value='';
