@@ -760,6 +760,8 @@ table.tbl { width:100%; border-collapse:collapse; font-size:13.5px; }
     </div>
     <div class="filter-bar">
       <select class="flt" id="fltUniv"><option value="">ทุกสถาบัน</option></select>
+      <select class="flt" id="fltFac"><option value="">ทุกคณะ</option></select>
+      <select class="flt" id="fltDept"><option value="">ทุกภาควิชา</option></select>
       <select class="flt" id="fltTitle"><option value="">ทุกตำแหน่ง</option></select>
       <select class="flt" id="fltStatus">
         <option value="">สถานะงานทั้งหมด</option>
@@ -1211,6 +1213,7 @@ const I18N = {
     dept:'ภาควิชา', fac:'คณะ', univ:'มหาวิทยาลัย / สถาบันวิจัย', expertise:'ความเชี่ยวชาญ (คั่นด้วยเครื่องหมาย , )',
     urls:'เว็บไซต์ / ลิงก์ (เพิ่มได้หลายลิงก์)', addUrl:'+ เพิ่มลิงก์', email:'อีเมล', phone:'โทรศัพท์', notes:'หมายเหตุ',
     selPanelTitle:'ผู้ทรงที่เลือกไว้', selRemove:'เอาออกจากรายการ',
+    allFac:'ทุกคณะ', allDept:'ทุกภาควิชา/สาขาวิชา', noFac:'(ไม่ระบุคณะ)', noDept:'(ไม่ระบุภาควิชา)',
     allTitles:'ทุกตำแหน่ง', titleProf:'ศ. (ศาสตราจารย์)', titleAssoc:'รศ. (รองศาสตราจารย์)', titleAsst:'ผศ. (ผู้ช่วยศาสตราจารย์)', titleDr:'ดร. (ไม่ระบุตำแหน่งวิชาการ)', titleOther:'อื่นๆ', titleNone:'ไม่ระบุคำนำหน้า',
     exDownloadTmpl:'⬇ Template ผู้ทรง', exImportXlsx:'⬆ นำเข้าผู้ทรงจาก Excel',
     exImported:(n,skip)=>'นำเข้าผู้ทรงใหม่ '+n+' ท่าน'+(skip?' (ข้ามชื่อซ้ำ '+skip+' ท่าน)':''),
@@ -1333,6 +1336,7 @@ const I18N = {
     dept:'Department', fac:'Faculty', univ:'University / Research Institute', expertise:'Expertise (comma-separated)',
     urls:'Websites / Links (multiple allowed)', addUrl:'+ Add link', email:'Email', phone:'Phone', notes:'Notes',
     selPanelTitle:'Selected experts', selRemove:'Remove from list',
+    allFac:'All faculties', allDept:'All departments', noFac:'(no faculty)', noDept:'(no department)',
     allTitles:'All titles', titleProf:'Professor', titleAssoc:'Associate Professor', titleAsst:'Assistant Professor', titleDr:'Dr. (no academic rank)', titleOther:'Other', titleNone:'No title',
     exDownloadTmpl:'⬇ Expert template', exImportXlsx:'⬆ Import experts from Excel',
     exImported:(n,skip)=>'Imported '+n+' experts'+(skip?' ('+skip+' duplicates skipped)':''),
@@ -1485,7 +1489,7 @@ let META = { id:'lists',
   programs:['15th e-Asia','ISPF_British Council','JST e-ASIA','JFS','ANSO','Belmont Forum'],
   plans:['N49(S4P23) พัฒนาเครือข่ายความร่วมมือนานาชาติ (Global Partnership)'],
   analysts:[] };
-let filterText = '', filterUniv = '', filterStatus = '', filterTitle = '';
+let filterText = '', filterUniv = '', filterStatus = '', filterTitle = '', filterFac = '', filterDept = '';
 let rvFltStatus = '', rvFltType = '', rvFltYear = '', rvFltAnalyst = '', rvFltProgram = '';
 let pjFltProgram = '', pjFltPlan = '', pjFltYear = '', pjFltDone = '';
 let trkFltStatus = '';
@@ -1910,7 +1914,7 @@ function openPasteImport(){
   setTimeout(()=>ta.focus(), 80);
 }
 // ---------------- Simple login gate ----------------
-const APP_VERSION = 'v4.66';
+const APP_VERSION = 'v4.67';
 const ACCESS_CODE = 'global';
 function initLogin(){
   const gate = document.getElementById('loginGate');
@@ -2182,6 +2186,32 @@ function renderFilters(){
   sel.value = cur;
   if(sel.value !== cur){ filterUniv=''; }
 
+  // คณะ — ตามสถาบันที่เลือก
+  const facPool = EXPERTS.filter(e=> !filterUniv || e.univ===filterUniv);
+  const facCount = {};
+  facPool.forEach(e=>{ const k=(e.fac||'').trim()||'(none)'; facCount[k]=(facCount[k]||0)+1; });
+  const facKeys = Object.keys(facCount).sort((a,b)=>
+    a==='(none)'?1:b==='(none)'?-1:a.localeCompare(b,'th'));
+  const fsel = document.getElementById('fltFac');
+  const fcur = filterFac;
+  fsel.innerHTML = '<option value="">'+esc(T('allFac'))+' ('+facPool.length+')</option>' +
+    facKeys.map(k=>'<option value="'+esc(k)+'">'+esc(k==='(none)'?T('noFac'):k)+' ('+facCount[k]+')</option>').join('');
+  fsel.value = fcur;
+  if(fsel.value !== fcur){ filterFac=''; }
+
+  // ภาควิชา/สาขาวิชา — ตามสถาบัน + คณะที่เลือก
+  const deptPool = facPool.filter(e=> !filterFac || (((e.fac||'').trim()||'(none)')===filterFac));
+  const deptCount = {};
+  deptPool.forEach(e=>{ const k=(e.dept||'').trim()||'(none)'; deptCount[k]=(deptCount[k]||0)+1; });
+  const deptKeys = Object.keys(deptCount).sort((a,b)=>
+    a==='(none)'?1:b==='(none)'?-1:a.localeCompare(b,'th'));
+  const dsel = document.getElementById('fltDept');
+  const dcur = filterDept;
+  dsel.innerHTML = '<option value="">'+esc(T('allDept'))+' ('+deptPool.length+')</option>' +
+    deptKeys.map(k=>'<option value="'+esc(k)+'">'+esc(k==='(none)'?T('noDept'):k)+' ('+deptCount[k]+')</option>').join('');
+  dsel.value = dcur;
+  if(dsel.value !== dcur){ filterDept=''; }
+
   const tsel = document.getElementById('fltTitle');
   const tcur = filterTitle;
   const tc = {};
@@ -2293,6 +2323,8 @@ function renderFilters(){
 function matchExpert(ex){
   if(filterUniv && ex.univ !== filterUniv) return false;
   if(filterTitle && (titleKeyOf(ex.prefix)||'none') !== filterTitle) return false;
+  if(filterFac && ((ex.fac||'').trim() || '(none)') !== filterFac) return false;
+  if(filterDept && ((ex.dept||'').trim() || '(none)') !== filterDept) return false;
   if(activeTag && !(ex.expertise||[]).includes(activeTag)) return false;
   if(!activeTag && activeLetter && !(ex.expertise||[]).some(t=>letterOf(t)===activeLetter)) return false;
   if(filterStatus==='hasPending' && pendingOf(ex.id).length===0) return false;
@@ -3700,7 +3732,15 @@ window.addEventListener('DOMContentLoaded', async ()=>{
   });
   sInput.addEventListener('focus', ()=>{ if(sInput.value.trim()) renderSuggestions(sInput.value.trim()); });
   sInput.addEventListener('blur', ()=>{ setTimeout(()=>document.getElementById('sugBox').classList.remove('show'), 150); });
-  document.getElementById('fltUniv').addEventListener('change', (e)=>{ filterUniv = e.target.value; renderGrid(); });
+  document.getElementById('fltUniv').addEventListener('change', (e)=>{
+    filterUniv = e.target.value; filterFac=''; filterDept='';
+    renderFilters(); renderGrid();
+  });
+  document.getElementById('fltFac').addEventListener('change', (e)=>{
+    filterFac = e.target.value; filterDept='';
+    renderFilters(); renderGrid();
+  });
+  document.getElementById('fltDept').addEventListener('change', (e)=>{ filterDept = e.target.value; renderGrid(); });
   document.getElementById('fltTitle').addEventListener('change', (e)=>{ filterTitle = e.target.value; renderGrid(); });
   (function wireExpertCbx(){
     const inp = document.getElementById('rExpertSearch');
@@ -3736,10 +3776,11 @@ window.addEventListener('DOMContentLoaded', async ()=>{
     });
   })();
   document.getElementById('clearExpFlt').addEventListener('click', ()=>{
-    filterUniv=''; filterTitle=''; filterStatus=''; filterText=''; activeTag=''; activeLetter='';
+    filterUniv=''; filterTitle=''; filterStatus=''; filterText=''; activeTag=''; activeLetter=''; filterFac=''; filterDept='';
     document.getElementById('searchInput').value='';
     document.getElementById('fltUniv').value='';
     document.getElementById('fltTitle').value='';
+    document.getElementById('fltFac').value=''; document.getElementById('fltDept').value='';
     document.getElementById('fltStatus').value='';
     renderFilters(); renderGrid();
   });
