@@ -357,6 +357,8 @@ table.tbl { width:100%; border-collapse:collapse; font-size:13.5px; }
 .fld input:focus,.fld select:focus,.fld textarea:focus { border-color:var(--teal); }
 .fld textarea { resize:vertical; min-height:62px; }
 .fld .hint { font-size:11.5px; color:var(--ink-3); margin-top:5px; line-height:1.45; }
+.btn-rail-out { color:#FFC9C2 !important; }
+.btn-rail-out:hover { background:rgba(220,80,70,.22) !important; color:#fff !important; }
 .req::after { content:' *'; color:var(--bad); }
 
 .photo-row { display:flex; gap:14px; align-items:center; }
@@ -728,7 +730,7 @@ table.tbl { width:100%; border-collapse:collapse; font-size:13.5px; }
   </nav>
   <div class="rail-foot">
     <button class="btn" id="settingsBtn" data-i18n="settings">⚙ ตั้งค่า</button>
-    <button class="btn" id="syncBtn" data-i18n="syncBtn">☁ ซิงก์ข้อมูลออนไลน์</button>
+    <button class="btn btn-rail-out" id="railLogoutBtn" data-i18n="logoutBtnRail">🔓 ออกจากระบบ</button>
     <div id="railSyncInfo" style="font-size:10.5px;color:rgba(255,255,255,.55);text-align:center;margin-top:6px;line-height:1.5"></div>
     <div id="railVersion" style="font-size:9.5px;color:rgba(255,255,255,.35);text-align:center;margin-top:3px"></div>
   </div>
@@ -1085,7 +1087,7 @@ table.tbl { width:100%; border-collapse:collapse; font-size:13.5px; }
         <button class="btn btn-ghost" id="copyDataBtn" data-i18n="copyData">📋 คัดลอกข้อมูล (ข้อความ)</button>
         <button class="btn btn-ghost" id="pasteImportBtn" data-i18n="pasteImport">📥 นำเข้าจากข้อความ</button>
         <button class="btn btn-ghost" id="langBtn">EN</button>
-        <button class="btn btn-ghost" id="logoutBtn" data-i18n="logout" style="color:var(--bad)">ออกจากระบบ</button>
+        <button class="btn btn-ghost" id="syncBtn" data-i18n="syncBtn">☁ ซิงก์ข้อมูลออนไลน์</button>
       </div>
     </div>
     <div class="fld" style="margin-top:12px">
@@ -1337,6 +1339,8 @@ const I18N = {
     loginTitle:'ระบบฐานข้อมูลผู้ทรงคุณวุฒิ', loginSub:'PMU-B Expert Base · หน่วยบริหารจัดการทุนด้านเทคโนโลยีและนวัตกรรมเพื่ออุตสาหกรรมแห่งอนาคต (บพค.)',
     loginPh:'กรอกรหัสเข้าใช้งาน', loginBtn:'เข้าสู่ระบบ', loginWrong:'รหัสไม่ถูกต้อง ลองอีกครั้ง',
     loginFoot:'สำหรับนักวิเคราะห์ บพค. · ข้อมูลเก็บในเครื่องของคุณ', logout:'ออกจากระบบ',
+    logoutBtnRail:'🔓 ออกจากระบบ',
+    logoutDirtyConfirm:'ยังมีข้อมูลในเครื่องที่ไม่ได้อัพขึ้นคลาวด์ — ออกจากระบบตอนนี้ข้อมูลยังอยู่ในเครื่องนี้ แต่เครื่องอื่นจะยังไม่เห็น ต้องการออกจากระบบหรือไม่?',
     idleLabel:'ออกจากระบบอัตโนมัติเมื่อไม่มีการใช้งาน',
     idleHint:'ข้อมูลยังอยู่ในเครื่องเสมอ — การออกจากระบบเป็นการล็อกหน้าจอเท่านั้น',
     idleWarnA:'ไม่มีการใช้งาน — ระบบจะออกจากระบบอัตโนมัติใน', idleWarnB:'วินาที', idleStay:'ยังใช้งานอยู่',
@@ -1474,6 +1478,8 @@ const I18N = {
     loginTitle:'Expert Database System', loginSub:'PMU-B Expert Base · Program Management Unit for Frontier Technology and Innovation for Future Industry (PMU-B)',
     loginPh:'Enter access code', loginBtn:'Sign in', loginWrong:'Incorrect code, try again',
     loginFoot:'For PMU-B analysts · data stays on your device', logout:'Log out',
+    logoutBtnRail:'🔓 Log out',
+    logoutDirtyConfirm:'You still have local changes that are not pushed to the cloud. Logging out keeps them on this device, but other devices will not see them. Log out anyway?',
     idleLabel:'Auto log out after inactivity',
     idleHint:'Your data always stays on this device — logging out only locks the screen.',
     idleWarnA:'Inactive — signing you out in', idleWarnB:'seconds', idleStay:'I\u2019m still here',
@@ -2015,7 +2021,7 @@ function openPasteImport(){
   setTimeout(()=>ta.focus(), 80);
 }
 // ---------------- Simple login gate ----------------
-const APP_VERSION = 'v4.70';
+const APP_VERSION = 'v4.71';
 const ACCESS_CODE = 'global';
 // --- idle auto-logout (v4.69) ---
 const IDLE_DEFAULT = 3600000;            // 1 ชั่วโมง
@@ -4107,7 +4113,10 @@ window.addEventListener('DOMContentLoaded', async ()=>{
     await importJSON({ text: async ()=> raw });
     closeModal('textDataModal');
   });
-  document.getElementById('syncBtn').addEventListener('click', ()=>{ refreshSyncUI(); openModal('syncModal'); });
+  document.getElementById('syncBtn').addEventListener('click', ()=>{
+    closeModal('settingsModal');              // ปิดหน้าตั้งค่าก่อน ไม่งั้นหน้าซิงก์จะไปอยู่ใต้
+    refreshSyncUI(); openModal('syncModal');
+  });
   document.getElementById('ghTokenEye').addEventListener('click', ()=>{
     const t = document.getElementById('ghToken');
     t.type = t.type==='password' ? 'text' : 'password';
@@ -4127,7 +4136,8 @@ window.addEventListener('DOMContentLoaded', async ()=>{
     localStorage.setItem('peb_gist_id', document.getElementById('ghGistId').value.trim());
     cloudPull();
   });
-  document.getElementById('logoutBtn').addEventListener('click', ()=>{
+  document.getElementById('railLogoutBtn').addEventListener('click', async ()=>{
+    if(isDirty() && !await appConfirm(T('logoutDirtyConfirm'))) return;
     idleStop();
     localStorage.removeItem('peb_auth');
     localStorage.removeItem('peb_last_act');
