@@ -1089,6 +1089,14 @@ table.tbl { width:100%; border-collapse:collapse; font-size:13.5px; }
       </div>
     </div>
     <div class="fld" style="margin-top:12px">
+      <label data-i18n="autoSyncLabel">ดึงข้อมูลจากคลาวด์อัตโนมัติหลังเข้าสู่ระบบ</label>
+      <select id="autoSyncSel">
+        <option value="1" data-i18n="autoSyncOn">เปิด</option>
+        <option value="0" data-i18n="autoSyncOff">ปิด</option>
+      </select>
+      <div class="hint" data-i18n="autoSyncHint">ถ้ามีข้อมูลค้างยังไม่ได้อัพ ระบบจะข้ามการดึงให้อัตโนมัติ เพื่อไม่ให้งานหาย</div>
+    </div>
+    <div class="fld" style="margin-top:12px">
       <label data-i18n="idleLabel">ออกจากระบบอัตโนมัติเมื่อไม่มีการใช้งาน</label>
       <select id="idleSel">
         <option value="900000" data-i18n="idleOpt15">15 นาที</option>
@@ -1270,6 +1278,14 @@ const I18N = {
     rvExpertPh:'พิมพ์ชื่อผู้ทรง หรือสังกัด เพื่อค้นหา...', rvLetterPh:'เช่น อว 9100/xxxx', cbxNoMatch:'ไม่พบผู้ทรงที่ตรงกับคำค้น',
     stToggled:(dn)=>dn?'ทำเครื่องหมายว่าประเมินเสร็จแล้ว':'เปลี่ยนกลับเป็นรอประเมิน',
     progUp:'กำลังบันทึกขึ้นคลาวด์...', progDown:'กำลังดึงข้อมูลจากคลาวด์...', progImport:'กำลังนำเข้าข้อมูล...', progDone:'เสร็จสิ้น!',
+    progAuto:'กำลังซิงก์ข้อมูลล่าสุด...', autoPullDone:'ข้อมูลเป็นเวอร์ชันล่าสุดแล้ว',
+    autoPullDirty:'มีข้อมูลในเครื่องที่ยังไม่ได้อัพขึ้นคลาวด์ — ข้ามการดึงอัตโนมัติไว้ก่อน กรุณากดอัพขึ้นคลาวด์',
+    autoPullOffline:'ออฟไลน์อยู่ — ใช้ข้อมูลในเครื่องไปก่อน',
+    syncOffline:'ต่ออินเทอร์เน็ตไม่ได้',
+    autoPullFail:(m)=>'ซิงก์อัตโนมัติไม่สำเร็จ ('+m+') — ใช้ข้อมูลในเครื่องต่อได้',
+    autoSyncLabel:'ดึงข้อมูลจากคลาวด์อัตโนมัติหลังเข้าสู่ระบบ',
+    autoSyncHint:'ถ้ามีข้อมูลค้างยังไม่ได้อัพ ระบบจะข้ามการดึงให้อัตโนมัติ เพื่อไม่ให้งานหาย',
+    autoSyncOn:'เปิด', autoSyncOff:'ปิด', autoSyncSaved:'บันทึกการตั้งค่าซิงก์อัตโนมัติแล้ว',
     pAnalyst:'นักวิเคราะห์ที่รับผิดชอบ (เชื่อมไปทุกงานประเมินของโครงการนี้)',
     assign:'Assign', edit:'แก้ไข',
     rvExpert:'ผู้ทรงคุณวุฒิ', rvProject:'เลือกโครงการจากทะเบียน (หรือพิมพ์ชื่อเองด้านล่าง)',
@@ -1399,6 +1415,14 @@ const I18N = {
     rvExpertPh:'Type a name or affiliation to search...', rvLetterPh:'e.g. อว 9100/xxxx', cbxNoMatch:'No matching expert',
     stToggled:(dn)=>dn?'Marked as completed':'Moved back to pending',
     progUp:'Pushing to cloud...', progDown:'Pulling from cloud...', progImport:'Importing data...', progDone:'Done!',
+    progAuto:'Syncing latest data...', autoPullDone:'You are on the latest data',
+    autoPullDirty:'Local changes are not pushed yet — skipping the automatic pull so nothing is lost. Please push to cloud.',
+    autoPullOffline:'Offline — using the data on this device',
+    syncOffline:'no internet connection',
+    autoPullFail:(m)=>'Auto-sync failed ('+m+') — continuing with local data',
+    autoSyncLabel:'Pull from cloud automatically after sign-in',
+    autoSyncHint:'If local changes are still unpushed, the automatic pull is skipped so your work is never overwritten.',
+    autoSyncOn:'On', autoSyncOff:'Off', autoSyncSaved:'Auto-sync setting saved',
     pAnalyst:'Responsible analyst (linked to every review of this project)',
     assign:'Assign', edit:'Edit',
     rvExpert:'Expert', rvProject:'Pick a project from the registry (or type a name below)',
@@ -1751,6 +1775,7 @@ function humanSyncErr(m){
   if(/HTTP 404/.test(m)) return T('syncNotFound');
   if(/HTTP 422/.test(m)) return T('syncTooBig');
   if(/Unexpected end of JSON|JSON Parse|Unexpected token/i.test(m)) return T('syncCorrupt');
+  if(/Failed to fetch|NetworkError|Load failed|ERR_INTERNET|network/i.test(m)) return T('syncOffline');
   return m;
 }
 function syncStatusText(){
@@ -1872,13 +1897,16 @@ async function cloudPush(){
     toast(T('syncPushed')(Math.round(raw.length/1024)));
   } catch(e){ hideProgress(); const m = humanSyncErr(e.message); setSyncStatus(T('syncErr')(m)); toast(T('syncErr')(m)); }
 }
-async function cloudPull(){
+async function cloudPull(opts){
+  opts = opts || {};
+  const AUTO = !!opts.auto;
+  const LBL = AUTO ? T('progAuto') : T('progDown');
   const {gist} = syncCfg();
-  if(!gist){ toast(T('syncNoGist')); return; }
-  if(!await appConfirm(T('syncConfirmPull'))) return;
+  if(!gist){ if(!AUTO) toast(T('syncNoGist')); return false; }
+  if(!AUTO && !await appConfirm(T('syncConfirmPull'))) return false;
   try {
     setSyncStatus(T('syncPulling'));
-    showProgress(T('progDown'));
+    showProgress(LBL);
     // 1) tiny call: find owner + pinned revision (immutable raw URLs, mobile-friendly)
     const commits = await withRetry(()=> gh('/gists/'+gist+'/commits?per_page=1'), 2);
     const head = Array.isArray(commits) && commits[0];
@@ -1894,7 +1922,7 @@ async function cloudPull(){
     let raw = '';
     for(let i=0;i<man.chunks;i++){
       setSyncStatus(T('syncPullingN')(i+1, man.chunks));
-      setProgress(14 + ((i)/man.chunks)*76, T('progDown')+' ('+(i+1)+'/'+man.chunks+')');
+      setProgress(14 + ((i)/man.chunks)*76, LBL+' ('+(i+1)+'/'+man.chunks+')');
       raw += await withRetry(()=> fetchRawText(base+'data_'+String(i).padStart(3,'0')+'.txt'), 3);
     }
     if(man.bytes && raw.length !== man.bytes) throw new Error(T('syncBytesMismatch')(raw.length, man.bytes));
@@ -1906,8 +1934,30 @@ async function cloudPull(){
     refreshSyncUI();
     checkNewExperts();
     await finishProgress();
-    toast(T('syncPulled'));
-  } catch(e){ hideProgress(); const m = humanSyncErr(e.message); setSyncStatus(T('syncErr')(m)); toast(T('syncErr')(m)); }
+    toast(AUTO ? T('autoPullDone') : T('syncPulled'));
+    return true;
+  } catch(e){
+    hideProgress();
+    const m = humanSyncErr(e.message);
+    setSyncStatus(T('syncErr')(m));
+    toast(AUTO ? T('autoPullFail')(m) : T('syncErr')(m));
+    return false;
+  }
+}
+
+// ---------------- Auto pull right after sign-in (v4.70) ----------------
+function autoSyncOn(){ return localStorage.getItem('peb_autosync') !== '0'; }
+async function autoPullOnLogin(){
+  if(!autoSyncOn()) return false;
+  const {token, gist} = syncCfg();
+  if(!token || !gist) return false;                    // ยังไม่ได้ตั้งค่าคลาวด์ — เข้าหน้า home ตามปกติ
+  if(isDirty()){                                       // มีงานค้างยังไม่อัพ — ห้ามดึงทับ
+    updateDirtyBar();
+    toast(T('autoPullDirty'));
+    return false;
+  }
+  if(navigator.onLine === false){ toast(T('autoPullOffline')); return false; }
+  return await cloudPull({auto:true});
 }
 // ---------------- Cloud update notification ----------------
 let BOOTING = true;
@@ -1965,7 +2015,7 @@ function openPasteImport(){
   setTimeout(()=>ta.focus(), 80);
 }
 // ---------------- Simple login gate ----------------
-const APP_VERSION = 'v4.69';
+const APP_VERSION = 'v4.70';
 const ACCESS_CODE = 'global';
 // --- idle auto-logout (v4.69) ---
 const IDLE_DEFAULT = 3600000;            // 1 ชั่วโมง
@@ -2048,6 +2098,14 @@ function bindIdleActivity(){
   });
   document.getElementById('idleStay').addEventListener('click', ()=>{ idleMark(true); idleHideWarn(); });
 }
+function initAutoSyncSetting(){
+  const sel = document.getElementById('autoSyncSel');
+  sel.value = autoSyncOn() ? '1' : '0';
+  sel.addEventListener('change', ()=>{
+    localStorage.setItem('peb_autosync', sel.value);
+    toast(T('autoSyncSaved'));
+  });
+}
 function initIdleSetting(){
   const sel = document.getElementById('idleSel');
   sel.value = String(idleLimit());
@@ -2071,6 +2129,7 @@ function initLogin(){
       showLoginNote('');
       gate.classList.add('hidden');
       idleStart();
+      setTimeout(()=>{ autoPullOnLogin(); }, 80);   // ให้หน้าจอวาดเสร็จก่อน แล้วค่อยขึ้นวงกลมหมุน
     } else {
       document.getElementById('loginErr').textContent = T('loginWrong');
       const card = document.getElementById('loginCard');
@@ -2085,6 +2144,7 @@ function initLogin(){
   });
   bindIdleActivity();
   initIdleSetting();
+  initAutoSyncSetting();
 
   if(localStorage.getItem('peb_auth')==='1'){
     const lim = idleLimit();
