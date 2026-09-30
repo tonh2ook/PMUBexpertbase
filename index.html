@@ -357,6 +357,18 @@ table.tbl { width:100%; border-collapse:collapse; font-size:13.5px; }
 .fld input:focus,.fld select:focus,.fld textarea:focus { border-color:var(--teal); }
 .fld textarea { resize:vertical; min-height:62px; }
 .fld .hint { font-size:11.5px; color:var(--ink-3); margin-top:5px; line-height:1.45; }
+.hist-list { display:flex; flex-direction:column; gap:8px; margin-top:12px; max-height:52vh; overflow:auto; }
+.hist-row {
+  display:flex; align-items:center; gap:12px; flex-wrap:wrap;
+  border:1px solid var(--line); border-radius:12px; padding:11px 13px; background:var(--paper);
+}
+.hist-row.cur { border-color:var(--teal); background:rgba(15,158,158,.06); }
+.hist-row.small { border-color:rgba(214,69,54,.45); background:rgba(214,69,54,.05); }
+.hist-main { flex:1; min-width:190px; }
+.hist-when { font-size:13.5px; font-weight:600; color:var(--navy); }
+.hist-meta { font-size:11.5px; color:var(--ink-3); margin-top:2px; line-height:1.5; }
+.hist-size { font-size:13px; font-weight:700; font-variant-numeric:tabular-nums; }
+.hist-warn { font-size:11.5px; color:var(--bad); font-weight:600; }
 .btn-rail-out { color:#FFC9C2 !important; }
 .btn-rail-out:hover { background:rgba(220,80,70,.22) !important; color:#fff !important; }
 .req::after { content:' *'; color:var(--bad); }
@@ -1119,7 +1131,7 @@ table.tbl { width:100%; border-collapse:collapse; font-size:13.5px; }
 <div class="overlay layer-confirm" id="confirmModal">
   <div class="modal" style="max-width:420px">
     <h2 id="confirmTitle" style="margin-bottom:8px">ยืนยันการลบ</h2>
-    <p id="confirmMsg" style="font-size:14px;color:var(--ink-2)"></p>
+    <p id="confirmMsg" style="font-size:14px;color:var(--ink-2);white-space:pre-line;line-height:1.6"></p>
     <div class="modal-actions">
       <button class="btn btn-ghost" id="confirmNo" data-i18n="cancel">ยกเลิก</button>
       <button class="btn btn-danger" id="confirmYes" data-i18n="confirmDo">ยืนยันลบ</button>
@@ -1178,9 +1190,25 @@ table.tbl { width:100%; border-collapse:collapse; font-size:13.5px; }
     <div id="syncStatus" style="font-size:12.5px;color:var(--ink-3);background:var(--wash);border:1px solid var(--line-2);border-radius:10px;padding:9px 12px;margin-top:6px"></div>
     <div class="modal-actions" style="flex-wrap:wrap">
       <button class="btn btn-ghost" id="syncSaveCfg" data-i18n="syncSaveCfg">💾 บันทึกการตั้งค่า</button>
+      <button class="btn btn-ghost" id="syncHistBtn" data-i18n="histBtn">🕓 ประวัติ / กู้คืน</button>
       <span style="flex:1"></span>
       <button class="btn btn-teal" id="syncPush" data-i18n="syncPush">⬆ บันทึกขึ้นคลาวด์</button>
       <button class="btn btn-primary" id="syncPull" data-i18n="syncPull">⬇ ดึงจากคลาวด์</button>
+    </div>
+  </div>
+</div>
+
+<div class="overlay layer-top" id="histModal">
+  <div class="modal" style="max-width:660px">
+    <button class="close-x" data-close="histModal">✕</button>
+    <h2 data-i18n="histTitle">🕓 ประวัติการอัพขึ้นคลาวด์</h2>
+    <p style="font-size:13px;color:var(--ink-2);margin:6px 0 4px" data-i18n="histDesc">ทุกครั้งที่กด “บันทึกขึ้นคลาวด์” ระบบเก็บเป็นเวอร์ชันใหม่ — ถ้าเผลออัพทับ เลือกเวอร์ชันก่อนหน้าแล้วกู้คืนได้</p>
+    <div id="histStatus" style="font-size:12.5px;color:var(--ink-3);background:var(--wash);border:1px solid var(--line-2);border-radius:10px;padding:9px 12px;margin-top:8px"></div>
+    <div class="hist-list" id="histList"></div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" id="histReload" data-i18n="histReload">↻ โหลดใหม่</button>
+      <span style="flex:1"></span>
+      <button class="btn btn-primary" data-close="histModal" data-i18n="doneBtn">เสร็จสิ้น</button>
     </div>
   </div>
 </div>
@@ -1339,6 +1367,21 @@ const I18N = {
     loginTitle:'ระบบฐานข้อมูลผู้ทรงคุณวุฒิ', loginSub:'PMU-B Expert Base · หน่วยบริหารจัดการทุนด้านเทคโนโลยีและนวัตกรรมเพื่ออุตสาหกรรมแห่งอนาคต (บพค.)',
     loginPh:'กรอกรหัสเข้าใช้งาน', loginBtn:'เข้าสู่ระบบ', loginWrong:'รหัสไม่ถูกต้อง ลองอีกครั้ง',
     loginFoot:'สำหรับนักวิเคราะห์ บพค. · ข้อมูลเก็บในเครื่องของคุณ', logout:'ออกจากระบบ',
+    histBtn:'🕓 ประวัติ / กู้คืน', histTitle:'🕓 ประวัติการอัพขึ้นคลาวด์',
+    histDesc:'ทุกครั้งที่กด “บันทึกขึ้นคลาวด์” ระบบเก็บเป็นเวอร์ชันใหม่ — ถ้าเผลออัพทับ เลือกเวอร์ชันก่อนหน้าแล้วกู้คืนได้',
+    histReload:'↻ โหลดใหม่', histLoading:'กำลังอ่านประวัติจากคลาวด์...',
+    histScanning:(a,b)=>'กำลังตรวจขนาดแต่ละเวอร์ชัน '+a+'/'+b+'...',
+    histFound:(n)=>'พบ '+n+' เวอร์ชัน — เวอร์ชันบนสุดคือข้อมูลที่ใช้อยู่ตอนนี้',
+    histCurrent:'ใช้อยู่ตอนนี้', histRev:'รหัส',
+    histCounts:(e,p,r)=>'ผู้ทรง '+e+' · โครงการ '+p+' · งานประเมิน '+r,
+    histNoCounts:'เวอร์ชันเก่า (ไม่มีข้อมูลจำนวนรายการ)',
+    histTiny:'⚠ ข้อมูลน้อยผิดปกติ',
+    histRestore:'กู้คืนเวอร์ชันนี้',
+    histConfirm:(when,what)=>'กู้คืนข้อมูลของวันที่ '+when+' ('+what+') มาที่เครื่องนี้ — ข้อมูลในเครื่องตอนนี้จะถูกเขียนทับ ยืนยันหรือไม่?',
+    histRestored:'กู้คืนข้อมูลเรียบร้อย — อย่าลืมอัพกลับขึ้นคลาวด์',
+    histPushBack:'กู้คืนสำเร็จแล้ว ต้องการอัพข้อมูลชุดนี้กลับขึ้นคลาวด์เลยหรือไม่? (เพื่อให้เครื่องอื่นเห็นข้อมูลที่ถูกต้อง)',
+    pushShrink:(oc,ok,nc,nk)=>'⚠ ข้อมูลที่กำลังจะอัพน้อยกว่าบนคลาวด์มาก\n\nบนคลาวด์ตอนนี้: '+oc+' ('+ok+' KB)\nกำลังจะอัพ: '+nc+' ('+nk+' KB)\n(ผู้ทรง/โครงการ/งานประเมิน)\n\nถ้าเครื่องนี้ยังไม่ได้ดึงข้อมูลล่าสุด การอัพจะทับข้อมูลของคนอื่น — ยืนยันอัพต่อหรือไม่?',
+    pushCancelled:'ยกเลิกการอัพขึ้นคลาวด์แล้ว',
     logoutBtnRail:'🔓 ออกจากระบบ',
     logoutDirtyConfirm:'ยังมีข้อมูลในเครื่องที่ไม่ได้อัพขึ้นคลาวด์ — ออกจากระบบตอนนี้ข้อมูลยังอยู่ในเครื่องนี้ แต่เครื่องอื่นจะยังไม่เห็น ต้องการออกจากระบบหรือไม่?',
     idleLabel:'ออกจากระบบอัตโนมัติเมื่อไม่มีการใช้งาน',
@@ -1478,6 +1521,21 @@ const I18N = {
     loginTitle:'Expert Database System', loginSub:'PMU-B Expert Base · Program Management Unit for Frontier Technology and Innovation for Future Industry (PMU-B)',
     loginPh:'Enter access code', loginBtn:'Sign in', loginWrong:'Incorrect code, try again',
     loginFoot:'For PMU-B analysts · data stays on your device', logout:'Log out',
+    histBtn:'🕓 History / restore', histTitle:'🕓 Cloud upload history',
+    histDesc:'Every “push to cloud” is kept as a new revision — if something was overwritten, pick an earlier one and restore it.',
+    histReload:'↻ Reload', histLoading:'Reading history from the cloud...',
+    histScanning:(a,b)=>'Checking each revision '+a+'/'+b+'...',
+    histFound:(n)=>n+' revisions found — the top one is what the cloud holds now',
+    histCurrent:'current', histRev:'rev',
+    histCounts:(e,p,r)=>e+' experts · '+p+' projects · '+r+' reviews',
+    histNoCounts:'older revision (no record counts stored)',
+    histTiny:'⚠ unusually small',
+    histRestore:'Restore this',
+    histConfirm:(when,what)=>'Restore the data from '+when+' ('+what+') onto this device? Everything currently on this device will be overwritten.',
+    histRestored:'Restored — remember to push it back to the cloud',
+    histPushBack:'Restore complete. Push this data back to the cloud now so other devices see the correct version?',
+    pushShrink:(oc,ok,nc,nk)=>'⚠ You are about to upload much less data than the cloud holds.\n\nCloud now: '+oc+' ('+ok+' KB)\nUploading: '+nc+' ('+nk+' KB)\n(experts/projects/reviews)\n\nIf this device has not pulled the latest data, pushing will overwrite someone else\u2019s work. Continue?',
+    pushCancelled:'Upload cancelled',
     logoutBtnRail:'🔓 Log out',
     logoutDirtyConfirm:'You still have local changes that are not pushed to the cloud. Logging out keeps them on this device, but other devices will not see them. Log out anyway?',
     idleLabel:'Auto log out after inactivity',
@@ -1865,9 +1923,41 @@ async function withRetry(fn, tries){
   }
   throw last;
 }
+// อ่าน manifest ของเวอร์ชันบนคลาวด์ตอนนี้ (ใช้ตรวจก่อนเขียนทับ + ใช้ในหน้าประวัติ)
+async function cloudHead(){
+  const {gist} = syncCfg();
+  if(!gist) return null;
+  const commits = await gh('/gists/'+gist+'/commits?per_page=1');
+  const head = Array.isArray(commits) && commits[0];
+  if(!head || !head.user || !head.version) return null;
+  const base = 'https://gist.githubusercontent.com/'+head.user.login+'/'+gist+'/raw/'+head.version+'/';
+  const man = JSON.parse(await fetchRawText(base+'manifest.json'));
+  return {head, man, base, owner: head.user.login};
+}
+// กันอุบัติเหตุ: ถ้าจะอัพทับด้วยข้อมูลที่เล็กลงผิดปกติ ต้องยืนยันก่อน
+async function confirmShrink(newBytes, newCounts){
+  const {gist} = syncCfg();
+  if(!gist) return true;
+  let cur;
+  try { cur = await cloudHead(); } catch(e){ return true; }   // อ่านไม่ได้ ไม่บล็อกการอัพ
+  if(!cur || !cur.man) return true;
+  const oldB = cur.man.bytes || 0;
+  const oldC = cur.man.counts || null;
+  const shrankBytes = oldB > 0 && newBytes < oldB * 0.7;
+  const shrankRows  = oldC && (newCounts.experts < oldC.experts || newCounts.projects < oldC.projects || newCounts.reviews < oldC.reviews);
+  if(!shrankBytes && !shrankRows) return true;
+  const fmtC = (c)=> c ? (c.experts+'/'+c.projects+'/'+c.reviews) : '?';
+  return await appConfirm(T('pushShrink')(fmtC(oldC), Math.round(oldB/1024), fmtC(newCounts), Math.round(newBytes/1024)));
+}
+
 async function cloudPush(){
   const {token, gist} = syncCfg();
   if(!token){ toast(T('syncNoToken')); return; }
+  {
+    const probe = JSON.stringify(collectPayload()).length;
+    const okGo = await confirmShrink(probe, {experts:EXPERTS.length, projects:PROJECTS.length, reviews:REVIEWS.length});
+    if(!okGo){ toast(T('pushCancelled')); return; }
+  }
   try {
     setSyncStatus(T('syncPushing'));
     showProgress(T('progUp'));
@@ -1876,7 +1966,9 @@ async function cloudPush(){
     const files = {};
     let n = 0;
     for(let i=0;i<raw.length;i+=CHUNK){ files['data_'+String(n).padStart(3,'0')+'.txt'] = {content: raw.slice(i,i+CHUNK)}; n++; }
-    files['manifest.json'] = {content: JSON.stringify({app:'pmub-expert-base', chunks:n, bytes:raw.length, updatedAt:new Date().toISOString()})};
+    files['manifest.json'] = {content: JSON.stringify({app:'pmub-expert-base', chunks:n, bytes:raw.length,
+      counts:{experts:EXPERTS.length, projects:PROJECTS.length, reviews:REVIEWS.length},
+      updatedAt:new Date().toISOString()})};
     let id = gist;
     if(id){
       // null out stale chunk files beyond n — best-effort; a failed lookup must never block the push
@@ -1914,11 +2006,17 @@ async function cloudPull(opts){
     setSyncStatus(T('syncPulling'));
     showProgress(LBL);
     // 1) tiny call: find owner + pinned revision (immutable raw URLs, mobile-friendly)
-    const commits = await withRetry(()=> gh('/gists/'+gist+'/commits?per_page=1'), 2);
-    const head = Array.isArray(commits) && commits[0];
-    if(!head || !head.user || !head.version) throw new Error('cloud is empty');
-    setProgress(8);
-    const base = 'https://gist.githubusercontent.com/'+head.user.login+'/'+gist+'/raw/'+head.version+'/';
+    let base;
+    if(opts.sha && opts.owner){
+      base = 'https://gist.githubusercontent.com/'+opts.owner+'/'+gist+'/raw/'+opts.sha+'/';
+      setProgress(8);
+    } else {
+      const commits = await withRetry(()=> gh('/gists/'+gist+'/commits?per_page=1'), 2);
+      const head = Array.isArray(commits) && commits[0];
+      if(!head || !head.user || !head.version) throw new Error('cloud is empty');
+      setProgress(8);
+      base = 'https://gist.githubusercontent.com/'+head.user.login+'/'+gist+'/raw/'+head.version+'/';
+    }
     // 2) small manifest
     let man;
     try { man = JSON.parse(await withRetry(()=> fetchRawText(base+'manifest.json'), 2)); }
@@ -1935,12 +2033,13 @@ async function cloudPull(opts){
     setProgress(92, T('progImport'));
     await importJSON({ text: async ()=> raw });
     localStorage.setItem('peb_sync_at', new Date().toISOString());
-    clearDirty();
+    if(opts.sha){ localStorage.setItem('peb_dirty','1'); updateDirtyBar(); }  // เวอร์ชันเก่า ≠ ของบนคลาวด์ ต้องอัพกลับ
+    else clearDirty();
     hideCloudBanner();
     refreshSyncUI();
     checkNewExperts();
     await finishProgress();
-    toast(AUTO ? T('autoPullDone') : T('syncPulled'));
+    toast(opts.sha ? T('histRestored') : (AUTO ? T('autoPullDone') : T('syncPulled')));
     return true;
   } catch(e){
     hideProgress();
@@ -1949,6 +2048,80 @@ async function cloudPull(opts){
     toast(AUTO ? T('autoPullFail')(m) : T('syncErr')(m));
     return false;
   }
+}
+
+// ---------------- Cloud version history / restore (v4.72) ----------------
+let HIST = [];
+function kb(n){ return n>=1048576 ? (n/1048576).toFixed(2)+' MB' : Math.max(1,Math.round(n/1024))+' KB'; }
+async function openHistory(){
+  const {gist} = syncCfg();
+  if(!gist){ toast(T('syncNoGist')); return; }
+  closeModal('syncModal');
+  openModal('histModal');
+  document.getElementById('histList').innerHTML = '';
+  document.getElementById('histStatus').textContent = T('histLoading');
+  try {
+    const commits = await withRetry(()=> gh('/gists/'+gist+'/commits?per_page=40'), 2);
+    if(!Array.isArray(commits) || !commits.length) throw new Error('empty');
+    HIST = commits.map(c=>({
+      sha: c.version,
+      owner: (c.user && c.user.login) || '',
+      at: c.committed_at || '',
+      add: (c.change_status && c.change_status.additions) || 0,
+      del: (c.change_status && c.change_status.deletions) || 0,
+      man: null, err: false
+    }));
+    renderHistory();
+    // ดึง manifest ของแต่ละเวอร์ชัน (ไฟล์เล็กมาก) เพื่อบอกขนาด/จำนวนรายการ
+    let done = 0;
+    for(const h of HIST){
+      try {
+        const url = 'https://gist.githubusercontent.com/'+h.owner+'/'+gist+'/raw/'+h.sha+'/manifest.json';
+        h.man = JSON.parse(await fetchRawText(url));
+      } catch(e){ h.err = true; }
+      done++;
+      document.getElementById('histStatus').textContent = T('histScanning')(done, HIST.length);
+      if(done % 3 === 0 || done === HIST.length) renderHistory();
+    }
+    document.getElementById('histStatus').textContent = T('histFound')(HIST.length);
+    renderHistory();
+  } catch(e){
+    document.getElementById('histStatus').textContent = T('syncErr')(humanSyncErr(e.message));
+  }
+}
+function renderHistory(){
+  const biggest = HIST.reduce((m,h)=> Math.max(m, (h.man && h.man.bytes) || 0), 0);
+  document.getElementById('histList').innerHTML = HIST.map((h,i)=>{
+    const b = h.man && h.man.bytes;
+    const c = h.man && h.man.counts;
+    const isCur = i===0;
+    const tiny = biggest>0 && b!=null && b < biggest*0.7;
+    const size = h.err ? '—' : (b!=null ? kb(b) : '…');
+    const counts = c ? T('histCounts')(c.experts, c.projects, c.reviews) : (h.man ? T('histNoCounts') : '');
+    return '<div class="hist-row'+(isCur?' cur':'')+(tiny?' small':'')+'">' +
+      '<div class="hist-main">' +
+        '<div class="hist-when">'+esc(fmtDateTime(h.at))+(isCur?' <span class="chip chip-teal" style="margin-left:6px">'+esc(T('histCurrent'))+'</span>':'')+'</div>' +
+        '<div class="hist-meta">'+esc(counts)+(counts?' · ':'')+esc(T('histRev'))+' '+esc(h.sha.slice(0,7))+
+          (tiny?' · <span class="hist-warn">'+esc(T('histTiny'))+'</span>':'')+'</div>' +
+      '</div>' +
+      '<div class="hist-size">'+esc(size)+'</div>' +
+      (isCur ? '' : '<button class="btn btn-ghost" data-restore="'+i+'">'+esc(T('histRestore'))+'</button>') +
+    '</div>';
+  }).join('');
+  document.getElementById('histList').querySelectorAll('[data-restore]').forEach(b=>{
+    b.addEventListener('click', ()=> restoreVersion(parseInt(b.dataset.restore,10)));
+  });
+}
+async function restoreVersion(i){
+  const h = HIST[i];
+  if(!h) return;
+  const c = h.man && h.man.counts;
+  const what = c ? T('histCounts')(c.experts, c.projects, c.reviews) : kb((h.man&&h.man.bytes)||0);
+  if(!await appConfirm(T('histConfirm')(fmtDateTime(h.at), what))) return;
+  closeModal('histModal');
+  const good = await cloudPull({sha:h.sha, owner:h.owner});
+  if(!good) return;
+  if(await appConfirm(T('histPushBack'))) await cloudPush();
 }
 
 // ---------------- Auto pull right after sign-in (v4.70) ----------------
@@ -2021,7 +2194,7 @@ function openPasteImport(){
   setTimeout(()=>ta.focus(), 80);
 }
 // ---------------- Simple login gate ----------------
-const APP_VERSION = 'v4.71';
+const APP_VERSION = 'v4.72';
 const ACCESS_CODE = 'global';
 // --- idle auto-logout (v4.69) ---
 const IDLE_DEFAULT = 3600000;            // 1 ชั่วโมง
@@ -4113,6 +4286,8 @@ window.addEventListener('DOMContentLoaded', async ()=>{
     await importJSON({ text: async ()=> raw });
     closeModal('textDataModal');
   });
+  document.getElementById('syncHistBtn').addEventListener('click', openHistory);
+  document.getElementById('histReload').addEventListener('click', openHistory);
   document.getElementById('syncBtn').addEventListener('click', ()=>{
     closeModal('settingsModal');              // ปิดหน้าตั้งค่าก่อน ไม่งั้นหน้าซิงก์จะไปอยู่ใต้
     refreshSyncUI(); openModal('syncModal');
