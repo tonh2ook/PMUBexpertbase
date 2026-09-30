@@ -369,6 +369,10 @@ table.tbl { width:100%; border-collapse:collapse; font-size:13.5px; }
 .hist-meta { font-size:11.5px; color:var(--ink-3); margin-top:2px; line-height:1.5; }
 .hist-size { font-size:13px; font-weight:700; font-variant-numeric:tabular-nums; }
 .hist-warn { font-size:11.5px; color:var(--bad); font-weight:600; }
+.btn-rail-sync { background:rgba(15,158,158,.30) !important; color:#EAFBFB !important; font-weight:600; }
+.btn-rail-sync:hover { background:rgba(15,158,158,.50) !important; color:#fff !important; }
+.btn-rail-sync.spin { opacity:.6; pointer-events:none; }
+.btn-rail-sync.spin::before { content:''; }
 .btn-rail-out { color:#FFC9C2 !important; }
 .btn-rail-out:hover { background:rgba(220,80,70,.22) !important; color:#fff !important; }
 .req::after { content:' *'; color:var(--bad); }
@@ -741,6 +745,7 @@ table.tbl { width:100%; border-collapse:collapse; font-size:13.5px; }
     <a data-view="tracking"><span class="ic">📈</span><span data-i18n="navTracking">การติดตามรายผู้ทรง</span><span class="cnt" id="cntTracking">0</span></a>
   </nav>
   <div class="rail-foot">
+    <button class="btn btn-rail-sync" id="railRefreshBtn" data-i18n="refreshBtn">🔄 ดึงข้อมูลล่าสุด</button>
     <button class="btn" id="settingsBtn" data-i18n="settings">⚙ ตั้งค่า</button>
     <button class="btn btn-rail-out" id="railLogoutBtn" data-i18n="logoutBtnRail">🔓 ออกจากระบบ</button>
     <div id="railSyncInfo" style="font-size:10.5px;color:rgba(255,255,255,.55);text-align:center;margin-top:6px;line-height:1.5"></div>
@@ -1367,6 +1372,10 @@ const I18N = {
     loginTitle:'ระบบฐานข้อมูลผู้ทรงคุณวุฒิ', loginSub:'PMU-B Expert Base · หน่วยบริหารจัดการทุนด้านเทคโนโลยีและนวัตกรรมเพื่ออุตสาหกรรมแห่งอนาคต (บพค.)',
     loginPh:'กรอกรหัสเข้าใช้งาน', loginBtn:'เข้าสู่ระบบ', loginWrong:'รหัสไม่ถูกต้อง ลองอีกครั้ง',
     loginFoot:'สำหรับนักวิเคราะห์ บพค. · ข้อมูลเก็บในเครื่องของคุณ', logout:'ออกจากระบบ',
+    refreshBtn:'🔄 ดึงข้อมูลล่าสุด', refreshWorking:'⏳ กำลังตรวจสอบ...',
+    refreshUpToDate:'ข้อมูลเป็นเวอร์ชันล่าสุดอยู่แล้ว',
+    refreshNoCfg:'ยังไม่ได้ตั้งค่าคลาวด์ — กรุณาใส่ Token และ Gist ID ก่อน',
+    refreshDirty:'เครื่องนี้มีข้อมูลที่ยังไม่ได้อัพขึ้นคลาวด์ — ถ้าดึงข้อมูลล่าสุดตอนนี้ การแก้ไขที่ยังไม่ได้อัพจะหายไป\n\nแนะนำ: กดยกเลิก แล้วอัพขึ้นคลาวด์ก่อน\n\nต้องการดึงทับต่อหรือไม่?',
     histBtn:'🕓 ประวัติ / กู้คืน', histTitle:'🕓 ประวัติการอัพขึ้นคลาวด์',
     histDesc:'ทุกครั้งที่กด “บันทึกขึ้นคลาวด์” ระบบเก็บเป็นเวอร์ชันใหม่ — ถ้าเผลออัพทับ เลือกเวอร์ชันก่อนหน้าแล้วกู้คืนได้',
     histReload:'↻ โหลดใหม่', histLoading:'กำลังอ่านประวัติจากคลาวด์...',
@@ -1521,6 +1530,10 @@ const I18N = {
     loginTitle:'Expert Database System', loginSub:'PMU-B Expert Base · Program Management Unit for Frontier Technology and Innovation for Future Industry (PMU-B)',
     loginPh:'Enter access code', loginBtn:'Sign in', loginWrong:'Incorrect code, try again',
     loginFoot:'For PMU-B analysts · data stays on your device', logout:'Log out',
+    refreshBtn:'🔄 Get latest data', refreshWorking:'⏳ Checking...',
+    refreshUpToDate:'Already on the latest version',
+    refreshNoCfg:'Cloud sync is not set up yet — enter a token and Gist ID first',
+    refreshDirty:'This device has changes that are not pushed to the cloud. Pulling now will discard them.\n\nSuggested: cancel, then push to cloud first.\n\nPull anyway?',
     histBtn:'🕓 History / restore', histTitle:'🕓 Cloud upload history',
     histDesc:'Every “push to cloud” is kept as a new revision — if something was overwritten, pick an earlier one and restore it.',
     histReload:'↻ Reload', histLoading:'Reading history from the cloud...',
@@ -1979,12 +1992,14 @@ async function cloudPush(){
         });
       } catch(e){ /* skip cleanup; manifest.chunks bounds all reads anyway */ }
       setProgress(20); creepTo(88, 350);
-      await withRetry(()=> gh('/gists/'+id, {method:'PATCH', body:JSON.stringify({files})}), 2);
+      const res = await withRetry(()=> gh('/gists/'+id, {method:'PATCH', body:JSON.stringify({files})}), 2);
+      rememberSha(res);
     } else {
       setProgress(20); creepTo(88, 350);
       const made = await withRetry(()=> gh('/gists', {method:'POST', body:JSON.stringify({
         description:'PMU-B Expert Base — data sync', public:false, files})}), 2);
       id = made.id;
+      rememberSha(made);
       localStorage.setItem('peb_gist_id', id);
     }
     localStorage.setItem('peb_sync_at', new Date().toISOString());
@@ -2006,7 +2021,7 @@ async function cloudPull(opts){
     setSyncStatus(T('syncPulling'));
     showProgress(LBL);
     // 1) tiny call: find owner + pinned revision (immutable raw URLs, mobile-friendly)
-    let base;
+    let base, gotSha = opts.sha || '';
     if(opts.sha && opts.owner){
       base = 'https://gist.githubusercontent.com/'+opts.owner+'/'+gist+'/raw/'+opts.sha+'/';
       setProgress(8);
@@ -2015,6 +2030,7 @@ async function cloudPull(opts){
       const head = Array.isArray(commits) && commits[0];
       if(!head || !head.user || !head.version) throw new Error('cloud is empty');
       setProgress(8);
+      gotSha = head.version;
       base = 'https://gist.githubusercontent.com/'+head.user.login+'/'+gist+'/raw/'+head.version+'/';
     }
     // 2) small manifest
@@ -2033,6 +2049,7 @@ async function cloudPull(opts){
     setProgress(92, T('progImport'));
     await importJSON({ text: async ()=> raw });
     localStorage.setItem('peb_sync_at', new Date().toISOString());
+    if(gotSha) localStorage.setItem('peb_sync_sha', gotSha);
     if(opts.sha){ localStorage.setItem('peb_dirty','1'); updateDirtyBar(); }  // เวอร์ชันเก่า ≠ ของบนคลาวด์ ต้องอัพกลับ
     else clearDirty();
     hideCloudBanner();
@@ -2047,6 +2064,56 @@ async function cloudPull(opts){
     setSyncStatus(T('syncErr')(m));
     toast(AUTO ? T('autoPullFail')(m) : T('syncErr')(m));
     return false;
+  }
+}
+
+// จำว่าตอนนี้เครื่องนี้ถือข้อมูลของ revision ไหนอยู่ (ใช้เช็คว่ามีของใหม่ไหม โดยไม่ต้องโหลดทั้งก้อน)
+function rememberSha(gistRes){
+  try {
+    const v = gistRes && Array.isArray(gistRes.history) && gistRes.history[0] && gistRes.history[0].version;
+    if(v) localStorage.setItem('peb_sync_sha', v);
+    else localStorage.removeItem('peb_sync_sha');
+  } catch(e){ localStorage.removeItem('peb_sync_sha'); }
+}
+
+// อ่านเฉพาะ sha ของเวอร์ชันล่าสุดบนคลาวด์ (คำขอเล็กมาก) — '' ถ้าอ่านไม่ได้
+async function cloudHeadSha(){
+  const {gist} = syncCfg();
+  if(!gist) return '';
+  try {
+    const commits = await withRetry(()=> gh('/gists/'+gist+'/commits?per_page=1'), 2);
+    const h = Array.isArray(commits) && commits[0];
+    return (h && h.version) || '';
+  } catch(e){ return ''; }
+}
+function holdsLatest(headSha){
+  const mine = localStorage.getItem('peb_sync_sha') || '';
+  return !!headSha && !!mine && headSha === mine && !isDirty();
+}
+
+// ---------------- ปุ่มดึงข้อมูลล่าสุด (v4.73) ----------------
+let REFRESHING = false;
+async function refreshFromCloud(){
+  if(REFRESHING) return;
+  const {token, gist} = syncCfg();
+  if(!token || !gist){ toast(T('refreshNoCfg')); refreshSyncUI(); openModal('syncModal'); return; }
+  if(isDirty() && !await appConfirm(T('refreshDirty'))) return;
+  const btn = document.getElementById('railRefreshBtn');
+  REFRESHING = true; btn.classList.add('spin');
+  const old = btn.textContent; btn.textContent = T('refreshWorking');
+  try {
+    // เช็คก่อนว่ามีเวอร์ชันใหม่จริงไหม — คำขอเล็กมาก ไม่ต้องโหลด 4-5 MB ทุกครั้ง
+    const headSha = await cloudHeadSha();
+    if(holdsLatest(headSha)){
+      localStorage.setItem('peb_sync_at', new Date().toISOString());
+      refreshSyncUI();
+      toast(T('refreshUpToDate'));
+      return;
+    }
+    await cloudPull({auto:true});
+  } finally {
+    REFRESHING = false; btn.classList.remove('spin'); btn.textContent = old;
+    applyLang();
   }
 }
 
@@ -2136,6 +2203,12 @@ async function autoPullOnLogin(){
     return false;
   }
   if(navigator.onLine === false){ toast(T('autoPullOffline')); return false; }
+  if(holdsLatest(await cloudHeadSha())){          // ไม่มีอะไรใหม่ — ไม่ต้องโหลดซ้ำ เข้าหน้า home ได้เลย
+    localStorage.setItem('peb_sync_at', new Date().toISOString());
+    refreshSyncUI();
+    toast(T('autoPullDone'));
+    return true;
+  }
   return await cloudPull({auto:true});
 }
 // ---------------- Cloud update notification ----------------
@@ -2194,7 +2267,7 @@ function openPasteImport(){
   setTimeout(()=>ta.focus(), 80);
 }
 // ---------------- Simple login gate ----------------
-const APP_VERSION = 'v4.72';
+const APP_VERSION = 'v4.73';
 const ACCESS_CODE = 'global';
 // --- idle auto-logout (v4.69) ---
 const IDLE_DEFAULT = 3600000;            // 1 ชั่วโมง
@@ -4286,6 +4359,7 @@ window.addEventListener('DOMContentLoaded', async ()=>{
     await importJSON({ text: async ()=> raw });
     closeModal('textDataModal');
   });
+  document.getElementById('railRefreshBtn').addEventListener('click', refreshFromCloud);
   document.getElementById('syncHistBtn').addEventListener('click', openHistory);
   document.getElementById('histReload').addEventListener('click', openHistory);
   document.getElementById('syncBtn').addEventListener('click', ()=>{
