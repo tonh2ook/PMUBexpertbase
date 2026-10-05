@@ -1334,7 +1334,7 @@ const I18N = {
     reviewHistory:'ประวัติงานประเมิน (Activity Log)', addReview:'+ มอบหมายงาน',
     total:'ทั้งหมด', done:'เสร็จสิ้น', pending:'ค้างอยู่', avgRating:'คะแนนเฉลี่ย',
     typeNames:{proposal:'ข้อเสนอโครงการ', progress:'รายงานความก้าวหน้า', final:'รายงานฉบับสมบูรณ์', other:'อื่นๆ'},
-    stepNames:{assigned:'ได้รับมอบหมาย', evaluating:'กำลังประเมินโครงการ', docs:'รอส่งเอกสารหลักฐานการเบิกค่าตอบแทน', evaluated:'ประเมินเสร็จแล้ว', paid:'เบิกค่าตอบแทนเรียบร้อย'},
+    stepNames:{assigned:'ได้รับมอบหมาย', evaluating:'กำลังประเมินโครงการ', docs:'ส่งเอกสารหลักฐานการเบิกค่าตอบแทนเรียบร้อย', evaluated:'ประเมินเสร็จแล้ว', paid:'เบิกค่าตอบแทนเรียบร้อย'},
     noReviews:'ยังไม่มีประวัติงานประเมิน',
     reviewsUnit:'งาน', pendingShort:'ค้าง', projectsUnit:'โครงการ',
     settingsTitle:'ตั้งค่ารายการ (เพิ่ม/ลดได้)', setPrograms:'โปรแกรม (สำหรับปุ่มกรองและฟอร์ม)', setPlans:'แผนงาน', setAnalysts:'นักวิเคราะห์',
@@ -1492,7 +1492,7 @@ const I18N = {
     reviewHistory:'Review History (Activity Log)', addReview:'+ Assign Review',
     total:'Total', done:'Completed', pending:'Pending', avgRating:'Avg. rating',
     typeNames:{proposal:'Proposal', progress:'Progress Report', final:'Final Report', other:'Other'},
-    stepNames:{assigned:'Assigned', evaluating:'Evaluating', docs:'Awaiting payment documents', evaluated:'Evaluation completed', paid:'Honorarium disbursed'},
+    stepNames:{assigned:'Assigned', evaluating:'Evaluating', docs:'Payment documents submitted', evaluated:'Evaluation completed', paid:'Honorarium disbursed'},
     noReviews:'No review history yet',
     reviewsUnit:'reviews', pendingShort:'pending', projectsUnit:'projects',
     settingsTitle:'Manage Lists (add/remove)', setPrograms:'Programs (filter buttons & forms)', setPlans:'Plans', setAnalysts:'Analysts',
@@ -2267,7 +2267,7 @@ function openPasteImport(){
   setTimeout(()=>ta.focus(), 80);
 }
 // ---------------- Simple login gate ----------------
-const APP_VERSION = 'v4.73';
+const APP_VERSION = 'v4.74';
 const ACCESS_CODE = 'global';
 // --- idle auto-logout (v4.69) ---
 const IDLE_DEFAULT = 3600000;            // 1 ชั่วโมง
