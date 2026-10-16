@@ -522,6 +522,18 @@ table.tbl { width:100%; border-collapse:collapse; font-size:13.5px; }
   background:rgba(7,16,32,.62); backdrop-filter:blur(3px);
 }
 .prog-overlay.show { display:flex; }
+/* v4.78: ไม่แสดงวงล้อเต็มจอ — ความคืบหน้าย้ายไปที่แถบสถานะในเมนูซ้าย (ยังกันการคลิกระหว่างซิงค์เหมือนเดิม) */
+.prog-overlay{background:transparent!important;backdrop-filter:none!important;cursor:progress}
+.prog-overlay .prog-box,.prog-overlay .prog-label{display:none!important}
+.rail-sync{display:flex;align-items:center;gap:8px;padding:8px 10px;border-radius:9px;background:rgba(255,255,255,.07);color:rgba(255,255,255,.85);font-size:12.5px;line-height:1.3;text-align:left}
+.rail-sync i{width:8px;height:8px;border-radius:50%;background:#8a93ad;flex:none}
+.rail-sync.ok i{background:#4cd18a}.rail-sync.dirty i{background:#f5c13d}.rail-sync.err i{background:#ff6b63}
+.rail-sync.busy i{background:#7fb0ff;animation:rsPulse 1s infinite}
+.rail-sync .rs-bar{flex:1;height:4px;border-radius:2px;background:rgba(255,255,255,.12);overflow:hidden;min-width:30px;display:none}
+.rail-sync.busy .rs-bar{display:block}
+.rail-sync .rs-bar b{display:block;height:100%;width:0;background:#7fb0ff;transition:width .25s}
+@keyframes rsPulse{50%{opacity:.3}}
+
 .prog-box { position:relative; width:140px; height:140px; }
 .prog-box svg { transform:rotate(-90deg); }
 .prog-track { fill:none; stroke:rgba(255,255,255,.16); stroke-width:9; }
@@ -748,6 +760,7 @@ table.tbl { width:100%; border-collapse:collapse; font-size:13.5px; }
     <a data-view="tracking"><span class="ic">📈</span><span data-i18n="navTracking">การติดตามรายผู้ทรง</span><span class="cnt" id="cntTracking">0</span></a>
   </nav>
   <div class="rail-foot">
+    <div class="rail-sync" id="railSyncPill"><i></i><span></span><div class="rs-bar"><b></b></div></div>
     <button class="btn btn-rail-sync" id="railRefreshBtn" data-i18n="refreshBtn">🔄 ดึงข้อมูลล่าสุด</button>
     <a class="btn" id="d3oneBtn" href="/D3-One/" style="display:none;text-decoration:none">◧ D3-One</a>
     <button class="btn" id="settingsBtn" data-i18n="settings">⚙ ตั้งค่า</button>
@@ -1852,6 +1865,7 @@ const GH_API = 'https://api.github.com';
 const CHUNK = 800*1024;
 function syncCfg(){ return {token: localStorage.getItem('peb_gh_token')||'', gist: localStorage.getItem('peb_gist_id')||''}; }
 function humanSyncErr(m){
+  RS_ERR=true;
   if(/HTTP 401|HTTP 403/.test(m)) return T('syncAuthErr');
   if(/HTTP 404/.test(m)) return T('syncNotFound');
   if(/HTTP 422/.test(m)) return T('syncTooBig');
@@ -1868,7 +1882,8 @@ function updateRailSync(){
   const el = document.getElementById('railSyncInfo');
   if(!el) return;
   const at = localStorage.getItem('peb_sync_at');
-  el.textContent = (at ? (T('syncLast')+' '+fmtDateTime(at)) : T('syncNever')) + (isDirty() ? ' '+T('railDirty') : '');
+  el.textContent = (at ? (T('syncLast')+' '+fmtDateTime(at)) : T('syncNever'));
+  try{rsUpdate()}catch(e){}
 }
 function refreshSyncUI(){
   updateRailSync();
@@ -1893,6 +1908,25 @@ async function gh(path, opts={}){
   try { return JSON.parse(txt); }
   catch(e){ throw new Error(T('syncNetCut')); }
 }
+
+const RS_TXT={th:{local:'เก็บในเครื่องนี้',busy:'กำลังซิงค์',ok:'ออนไลน์ · ซิงค์แล้ว',dirty:'ยังไม่ได้อัปโหลด',err:'ซิงค์ไม่สำเร็จ'},
+              en:{local:'Saved on this device',busy:'Syncing',ok:'Online · synced',dirty:'Not uploaded yet',err:'Sync failed'}};
+let RS_BUSY=false, RS_PCT=0, RS_ERR=false;
+function rsPaint(state){
+  const el=document.getElementById('railSyncPill'); if(!el) return;
+  const L=RS_TXT[(typeof LANG!=='undefined'&&LANG==='en')?'en':'th'];
+  el.className='rail-sync '+state;
+  el.querySelector('span').textContent = state==='busy' ? L.busy+' '+RS_PCT+'%' : L[state];
+  el.querySelector('.rs-bar b').style.width = RS_PCT+'%';
+}
+function rsUpdate(){
+  const c=syncCfg();
+  if(RS_BUSY) return rsPaint('busy');
+  if(!c.token||!c.gist) return rsPaint('local');
+  if(RS_ERR) return rsPaint('err');
+  rsPaint(isDirty()?'dirty':'ok');
+}
+setInterval(()=>{ try{rsUpdate()}catch(e){} }, 3000);
 const PROG_C = 2*Math.PI*58;
 let progCreep = null;
 function setProgress(pct, label){
@@ -1903,9 +1937,11 @@ function setProgress(pct, label){
   document.getElementById('progPct').textContent = pct + '%';
   if(label !== undefined) document.getElementById('progLabel').textContent = label;
   document.getElementById('progOverlay').dataset.pct = pct;
+  RS_PCT=pct; if(RS_BUSY) rsPaint('busy');
 }
 function showProgress(label){
   clearInterval(progCreep); progCreep = null;
+  RS_BUSY=true; RS_ERR=false; RS_PCT=0;
   setProgress(0, label);
   document.getElementById('progOverlay').classList.add('show');
 }
@@ -1920,12 +1956,14 @@ function creepTo(target, stepMs){
 async function finishProgress(){
   clearInterval(progCreep); progCreep = null;
   setProgress(100, T('progDone'));
+  RS_ERR=false;
   await new Promise(r=>setTimeout(r, 450));
   hideProgress();
 }
 function hideProgress(){
   clearInterval(progCreep); progCreep = null;
   document.getElementById('progOverlay').classList.remove('show');
+  RS_BUSY=false; setTimeout(()=>{ try{rsUpdate()}catch(e){} },0);
 }
 async function fetchRawText(url){
   const r = await fetch(url);
@@ -2279,7 +2317,7 @@ function d3oneLang(){try{return localStorage.getItem('d3one:lang')||''}catch(e){
 function d3oneSignOut(){try{localStorage.removeItem('d3one:auth');localStorage.removeItem('d3one:tok')}catch(e){}location.href=D3ONE_URL}
 var EB_DEFAULT_GIST='fc9183d7f784a01b3f16103f21de5761';  // ใช้เมื่อเครื่องยังไม่เคยตั้งค่า Gist
 
-const APP_VERSION = 'v4.77';
+const APP_VERSION = 'v4.78';
 const ACCESS_CODE = 'global';
 // --- idle auto-logout (v4.69) ---
 const IDLE_DEFAULT = 3600000;            // 1 ชั่วโมง
