@@ -2652,7 +2652,7 @@ function d3oneLang(){try{return localStorage.getItem('d3one:lang')||''}catch(e){
 function d3oneSignOut(){try{localStorage.removeItem('d3one:auth');localStorage.removeItem('d3one:tok')}catch(e){}location.href=D3ONE_URL}
 var EB_DEFAULT_GIST='fc9183d7f784a01b3f16103f21de5761';  // ใช้เมื่อเครื่องยังไม่เคยตั้งค่า Gist
 
-const APP_VERSION = 'v4.83';
+const APP_VERSION = 'v4.84';
 const ACCESS_CODE = 'global';
 // --- idle auto-logout (v4.69) ---
 const IDLE_DEFAULT = 3600000;            // 1 ชั่วโมง
@@ -2789,7 +2789,8 @@ function initLogin(){
     localStorage.setItem('peb_sso','1');
     localStorage.setItem('peb_auth','1');
     localStorage.setItem('peb_last_act', String(Date.now()));
-    if(!localStorage.getItem('peb_gh_token') && d3oneToken()) localStorage.setItem('peb_gh_token', d3oneToken());
+    /* ใช้ token จาก D3-One เสมอ: token เก่าที่ค้างในเครื่อง (หมดอายุ/ถูกเปลี่ยน) ทำให้ซิงก์ขึ้น 401 */
+    if(d3oneToken() && localStorage.getItem('peb_gh_token')!==d3oneToken()) localStorage.setItem('peb_gh_token', d3oneToken());
     if(!localStorage.getItem('peb_gist_id') && EB_DEFAULT_GIST) localStorage.setItem('peb_gist_id', EB_DEFAULT_GIST);
     const db = document.getElementById('d3oneBtn'); if(db) db.style.display='';
     gate.classList.add('hidden');
